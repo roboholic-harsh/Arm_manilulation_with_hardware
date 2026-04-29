@@ -9,7 +9,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 from launch_ros.actions import Node
 
-
+from launch_ros.actions import Node
 
 def generate_launch_description():
 
@@ -38,10 +38,24 @@ def generate_launch_description():
                         output='screen')
 
 
+# Spawns the state broadcaster
+    load_joint_state_broadcaster = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_state_broadcaster"],
+    )
 
+    # Spawns the arm controller
+    load_arm_controller = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["arm_controller"],
+    )
     # Launch them all!
     return LaunchDescription([
         rsp,
         gazebo,
         spawn_entity,
+        load_joint_state_broadcaster,
+        load_arm_controller,
     ])

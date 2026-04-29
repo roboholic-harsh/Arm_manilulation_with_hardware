@@ -1,0 +1,25 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: arm_description
+    relative_path: description/bot.urdf.xacro
+  srdf:
+    relative_path: config/robot.srdf
+  package_settings:
+    author_name: halkubot
+    author_email: halkubot@adiance.com
+    generated_timestamp: 1777445011
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
