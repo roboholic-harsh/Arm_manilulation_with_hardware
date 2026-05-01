@@ -8,7 +8,7 @@ Return a valid JSON object.
 - Respect the order of keys based on user input.
 
 ### Values
-- `joints`: List of 4 integers. use `-402` for unchanged indices.
+- `joints`: List of 5 integers. use `-402` for unchanged indices.
 - `gripper`: Integer. `1`=Open, `0`=Close. (Synonym: "end-effector")
 
 ### Rules
@@ -22,8 +22,8 @@ Return a valid JSON object.
 6. **Universal Reference**: absolute target values.
 7. **Joint Indexing**:
     - Index 0: Base / Bottom joint / First.
-    - Index 3: Top-most joint / last / (wrist/end-effector mount).
-    - Indices 1-2: Intermediate joints / in order.
+    - Index 4: Top-most joint / last / (wrist/end-effector mount).
+    - Indices 1-3: Intermediate joints / in order.
 8. **Initial Stage**: Home is all 0s, gripper 1.
 
 ### Examples
@@ -31,21 +31,21 @@ Return a valid JSON object.
 Request: "Reset the robot"
 Response:
 {
-  "joints": [0, 0, 0, 0],
+  "joints": [0, 0, 0, 0, 0],
   "gripper": 1
 }
 
-Request: "move joints to 90, 60, 120, 150"
+Request: "move joints to 90, 60, 120, 150, 90"
 Response:
 {
-  "joints": [90, 60, 120, 150]
+  "joints": [90, 60, 120, 150, 90]
 }
 
 Request: "Close the gripper and move first joint by 90 degrees."
 Response:
 {
   "gripper": 0,
-  "joints": [90, -402, -402, -402]
+  "joints": [90, -402, -402, -402, -402]
 }
 
 Request: "Close the gripper"
