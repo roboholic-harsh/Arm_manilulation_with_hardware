@@ -1,0 +1,7 @@
+<library path="dofbot_hardware">
+  <class name="dofbot_hardware/DofbotSystemHardware" type="dofbot_hardware::DofbotSystemHardware" base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Industrial Hardware Interface for DOFBOT via ESP32.
+    </description>
+  </class>
+</library>

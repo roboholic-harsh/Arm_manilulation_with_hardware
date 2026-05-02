@@ -6,8 +6,12 @@
         </plugin>
     </gazebo>
     <ros2_control name="GazeboSystem" type="system">
-        <hardware>
+        <!-- <hardware>
             <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+        </hardware> -->
+
+        <hardware>
+            <plugin>dofbot_hardware/DofbotSystemHardware</plugin>
         </hardware>
 
         <joint name="link_1_joint">

@@ -4,10 +4,12 @@ moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControll
 
 moveit_simple_controller_manager:
   controller_names:
-    - halkubot_fjt
+    - arm_controller
 
-  halkubot_fjt:
+  arm_controller:
     type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory
+    default: true
     joints:
       - link_1_joint
       - link_2_joint
