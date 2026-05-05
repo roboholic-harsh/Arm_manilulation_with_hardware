@@ -157,6 +157,27 @@ hardware_interface::CallbackReturn HulkuHardwareInterface::on_activate(
     return hardware_interface::CallbackReturn::ERROR;
   }
 
+  // Create a dedicated rclcpp::Node for hosting ROS services (buzzer, torque)
+  // This runs on its own thread so it doesn't block the real-time control loop
+  service_node_ = rclcpp::Node::make_shared("hulku_hardware_services");
+
+  buzzer_service_ = service_node_->create_service<std_srvs::srv::SetBool>(
+    "/hulku_hardware/buzzer",
+    std::bind(&HulkuHardwareInterface::buzzer_callback, this,
+              std::placeholders::_1, std::placeholders::_2));
+
+  torque_service_ = service_node_->create_service<std_srvs::srv::SetBool>(
+    "/hulku_hardware/torque",
+    std::bind(&HulkuHardwareInterface::torque_callback, this,
+              std::placeholders::_1, std::placeholders::_2));
+
+  service_executor_ = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
+  service_executor_->add_node(service_node_);
+  service_thread_ = std::thread([this]() { service_executor_->spin(); });
+
+  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
+              "ROS services started: /hulku_hardware/buzzer, /hulku_hardware/torque");
+
   // print success message
   RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
               "Successfully activated!");
@@ -171,6 +192,18 @@ hardware_interface::CallbackReturn HulkuHardwareInterface::on_deactivate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
   RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
               "Deactivating ...please wait...");
+
+  // Shut down the ROS service thread
+  if (service_executor_) {
+    service_executor_->cancel();
+  }
+  if (service_thread_.joinable()) {
+    service_thread_.join();
+  }
+  buzzer_service_.reset();
+  torque_service_.reset();
+  service_node_.reset();
+  service_executor_.reset();
 
   // closes the serial connection
   close_serial();
@@ -641,6 +674,46 @@ void HulkuHardwareInterface::close_serial() {
     // that port again
     serial_fd_ = -1;
   }
+}
+
+// ===== ROS Service Callbacks for Buzzer and Torque =====
+// These run on the service_thread_, NOT the real-time control loop.
+// They share serial_fd_ with read()/write() but the kernel serializes POSIX writes.
+
+void HulkuHardwareInterface::buzzer_callback(
+    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+    std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
+  if (serial_fd_ < 0) {
+    response->success = false;
+    response->message = "Serial port not open";
+    return;
+  }
+
+  // Protocol: [0x55, 0xAA, 0x03, state]  state: 0xFF=ON, 0x00=OFF
+  uint8_t msg[4] = {0x55, 0xAA, 0x03, static_cast<uint8_t>(request->data ? 0xFF : 0x00)};
+  ::write(serial_fd_, msg, 4);
+
+  response->success = true;
+  response->message = request->data ? "Buzzer ON" : "Buzzer OFF";
+  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"), "%s", response->message.c_str());
+}
+
+void HulkuHardwareInterface::torque_callback(
+    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+    std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
+  if (serial_fd_ < 0) {
+    response->success = false;
+    response->message = "Serial port not open";
+    return;
+  }
+
+  // Protocol: [0x55, 0xAA, 0x04, state]  state: 0x01=Hold, 0x00=Drag
+  uint8_t msg[4] = {0x55, 0xAA, 0x04, static_cast<uint8_t>(request->data ? 0x01 : 0x00)};
+  ::write(serial_fd_, msg, 4);
+
+  response->success = true;
+  response->message = request->data ? "Torque ON (Hold mode)" : "Torque OFF (Drag mode)";
+  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"), "%s", response->message.c_str());
 }
 
 } // namespace hulku_hardware
