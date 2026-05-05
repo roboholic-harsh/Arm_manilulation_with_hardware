@@ -28,11 +28,13 @@ class AgentCore:
         tool_registry: ToolRegistry,
         system_prompt: str,
         max_steps: int = 5,
+        feedback_cb = None,
     ):
         self._llm = llm_backend
         self._registry = tool_registry
         self._system_prompt = system_prompt
         self._max_steps = max_steps
+        self._feedback_cb = feedback_cb
 
     def run(self, user_message: str) -> str:
         """
@@ -55,10 +57,18 @@ class AgentCore:
             if response.has_tool_calls():
                 for tc in response.tool_calls:
                     logger.info(f"  🔧 Calling tool: {tc.name}({tc.args})")
+                    if self._feedback_cb:
+                        self._feedback_cb(f"🔧 Calling tool: {tc.name}({tc.args})")
 
                     result = self._registry.execute(tc.name, **tc.args)
 
                     logger.info(f"  📋 Result: {result}")
+                    if self._feedback_cb:
+                        # Limit result string length in UI so it doesn't flood the chat bubble
+                        res_str = str(result)
+                        if len(res_str) > 200:
+                            res_str = res_str[:197] + "..."
+                        self._feedback_cb(f"📋 Result: {res_str}")
 
                     # Add the assistant's tool call as a message
                     messages.append({

@@ -133,6 +133,7 @@ class HulkuAgentNode(Node):
             tool_registry=self._registry,
             system_prompt=self._system_prompt,
             max_steps=self._max_steps,
+            # We don't pass feedback_cb here, we will inject it per-request
         )
 
         # ==============================
@@ -177,13 +178,24 @@ class HulkuAgentNode(Node):
         self.get_logger().info(f"📩 Received: {user_message}")
 
         try:
-            # Publish feedback
+            # Publish initial feedback
             feedback = ArmTask.Feedback()
             feedback.state = "Processing..."
             goal_handle.publish_feedback(feedback)
 
+            # Define a local callback to publish live feedback from the agent
+            def live_feedback_cb(state_str):
+                feedback.state = state_str
+                goal_handle.publish_feedback(feedback)
+
+            # Temporarily inject the callback for this run
+            self._agent._feedback_cb = live_feedback_cb
+
             # Run the ReAct agent loop
             result_text = self._agent.run(user_message)
+
+            # Clean up callback
+            self._agent._feedback_cb = None
 
             self.get_logger().info(f"✅ Agent result: {result_text}")
 
