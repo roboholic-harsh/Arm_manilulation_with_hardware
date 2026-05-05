@@ -70,7 +70,7 @@ class GroqBackend(BaseLLMBackend):
         if tools:
             kwargs["tools"] = self._convert_tools(tools)
             kwargs["tool_choice"] = "auto"
-            # uncheck if needed for parallel tool calls
+            # NOTE: Uncheck if needed for parallel tool calls disable if it cause problem with tool calls
             # kwargs["parallel_tool_calls"] = False
 
         try:
