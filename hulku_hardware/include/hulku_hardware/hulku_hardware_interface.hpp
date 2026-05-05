@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -55,6 +56,7 @@ private:
   std::string port_;
   int baud_rate_;
   int serial_fd_ = -1;
+  std::mutex serial_mutex_;
 
   // Store commands and states
   std::vector<double> hw_commands_;

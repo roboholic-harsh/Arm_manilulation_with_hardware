@@ -314,6 +314,8 @@ HulkuHardwareInterface::read(const rclcpp::Time & /*time*/,
   if (serial_fd_ < 0 || hw_states_.empty())
     return hardware_interface::return_type::OK;
 
+  std::lock_guard<std::mutex> lock(serial_mutex_);
+
   // This variable is used to count the number of loops
   static int loop_counter = 0;
   loop_counter++;
@@ -459,6 +461,8 @@ HulkuHardwareInterface::write(const rclcpp::Time & /*time*/,
   // simply return from this loop
   if (serial_fd_ < 0 || hw_commands_.empty())
     return hardware_interface::return_type::OK;
+
+  std::lock_guard<std::mutex> lock(serial_mutex_);
 
   // assigning the commands to variables
   // If hw_commands vector is not empty then take the joint values or fill with
@@ -689,9 +693,20 @@ void HulkuHardwareInterface::buzzer_callback(
     return;
   }
 
+  std::lock_guard<std::mutex> lock(serial_mutex_);
+
   // Protocol: [0x55, 0xAA, 0x03, state]  state: 0xFF=ON, 0x00=OFF
-  uint8_t msg[4] = {0x55, 0xAA, 0x03, static_cast<uint8_t>(request->data ? 0xFF : 0x00)};
-  ::write(serial_fd_, msg, 4);
+  uint8_t state_byte = request->data ? 0xFF : 0x00;
+  uint8_t msg[4] = {0x55, 0xAA, 0x03, state_byte};
+  
+  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"), 
+              "[DEBUG] Sending BUZZER command: 0x%02X. Attempting 3 transmissions to bypass I2C traffic.", state_byte);
+
+  // Send 3 times to guarantee it punches through the heavy 100Hz read/write traffic
+  for (int i = 0; i < 3; i++) {
+    ::write(serial_fd_, msg, 4);
+    usleep(5000); // 5ms delay between retries
+  }
 
   response->success = true;
   response->message = request->data ? "Buzzer ON" : "Buzzer OFF";
@@ -707,9 +722,20 @@ void HulkuHardwareInterface::torque_callback(
     return;
   }
 
+  std::lock_guard<std::mutex> lock(serial_mutex_);
+
   // Protocol: [0x55, 0xAA, 0x04, state]  state: 0x01=Hold, 0x00=Drag
-  uint8_t msg[4] = {0x55, 0xAA, 0x04, static_cast<uint8_t>(request->data ? 0x01 : 0x00)};
-  ::write(serial_fd_, msg, 4);
+  uint8_t state_byte = request->data ? 0x01 : 0x00;
+  uint8_t msg[4] = {0x55, 0xAA, 0x04, state_byte};
+
+  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"), 
+              "[DEBUG] Sending TORQUE command: 0x%02X. Attempting 3 transmissions to bypass I2C traffic.", state_byte);
+
+  // Send 3 times to guarantee it punches through
+  for (int i = 0; i < 3; i++) {
+    ::write(serial_fd_, msg, 4);
+    usleep(5000); // 5ms delay
+  }
 
   response->success = true;
   response->message = request->data ? "Torque ON (Hold mode)" : "Torque OFF (Drag mode)";
