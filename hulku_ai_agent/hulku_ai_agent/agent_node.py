@@ -23,7 +23,7 @@ from hulku_ai_agent.agent_core import AgentCore
 from hulku_ai_agent.tools import (
     ToolRegistry,
     MoveJointsTool, MoveGripperTool, BuzzerTool,
-    TorqueModeTool, GetJointStatesTool, GoHomeTool,
+    TorqueModeTool, GetJointStatesTool, GoHomeTool, WaitTool
 )
 
 # Configure logging
@@ -116,6 +116,7 @@ class HulkuAgentNode(Node):
         self._registry.register(TorqueModeTool(self))
         self._registry.register(GetJointStatesTool(self, self._joint_names))
         self._registry.register(GoHomeTool(move_joints))
+        self._registry.register(WaitTool())
 
         self.get_logger().info(f"Registered tools:\n{self._registry.list_tools()}")
 

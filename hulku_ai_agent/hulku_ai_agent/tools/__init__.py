@@ -8,9 +8,11 @@ from hulku_ai_agent.tools.buzzer import BuzzerTool
 from hulku_ai_agent.tools.torque_mode import TorqueModeTool
 from hulku_ai_agent.tools.get_joint_states import GetJointStatesTool
 from hulku_ai_agent.tools.go_home import GoHomeTool
+from hulku_ai_agent.tools.wait import WaitTool
 
 __all__ = [
     'BaseTool', 'ToolResult', 'ToolRegistry',
     'MoveJointsTool', 'MoveGripperTool', 'BuzzerTool',
     'TorqueModeTool', 'GetJointStatesTool', 'GoHomeTool',
+    'WaitTool',
 ]

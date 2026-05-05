@@ -13,7 +13,7 @@ agent:
     - Use -402 for joints that should remain unchanged.
     - Home position is all joints at 0 degrees.
     
-  max_steps: 5
+  max_steps: 15
   default_provider: "groq"
   default_model: "qwen/qwen3-32b"
 
