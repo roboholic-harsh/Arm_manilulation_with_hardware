@@ -272,16 +272,16 @@ def setup_ros():
 # ═══════════════════════════════════════════════════════════
 # ACTION CLIENT LOGIC
 # ═══════════════════════════════════════════════════════════
-def send_command(node, user_message: str, feedback_placeholder) -> dict:
+def send_command(node, user_message: str, feedback_placeholder, live_updates_container=None) -> dict:
     if not node.action_client.wait_for_server(timeout_sec=5.0):
         return {"success": False, "message": "ROS 2 action server '/arm_command' not found. Is the agent node running?"}
 
-    # Thread-safe feedback sharing
-    shared_feedback = {"latest": None, "displayed": None}
+    # Thread-safe feedback sharing using a list queue
+    shared_feedback_queue = []
 
     def feedback_callback(feedback_msg):
-        # This is called from the ROS background thread, NEVER call st.markdown here!
-        shared_feedback["latest"] = feedback_msg.feedback.state
+        # This is called from the ROS background thread
+        shared_feedback_queue.append(feedback_msg.feedback.state)
 
     goal_msg = ArmTask.Goal()
     goal_msg.json_command = user_message
@@ -301,10 +301,30 @@ def send_command(node, user_message: str, feedback_placeholder) -> dict:
     # Increase timeout to 600 seconds (10 minutes) for long complex sequences with waits
     start_time = time.time()
     while not result_future.done():
-        # Update Streamlit UI from the MAIN thread
-        if shared_feedback["latest"] and shared_feedback["latest"] != shared_feedback["displayed"]:
-            feedback_placeholder.markdown(f"*{shared_feedback['latest']}*")
-            shared_feedback["displayed"] = shared_feedback["latest"]
+        # Process all pending feedback messages
+        while len(shared_feedback_queue) > 0:
+            msg = shared_feedback_queue.pop(0)
+            
+            if msg.startswith("[USER_MSG]"):
+                # The agent explicitly wants to tell the user something.
+                content = msg[10:]
+                
+                # Append to session state so it survives reruns
+                st.session_state.messages.append({"role": "assistant", "content": f"<b style='color: #a5b4fc;'>[Live Update]</b> {content}"})
+                
+                # Render it immediately inside the live container so the user sees it without waiting for the final response
+                if live_updates_container:
+                    live_updates_container.markdown(f"""
+                    <div class="chat-bubble-wrapper ai-wrapper">
+                        <div class="avatar ai-avatar">🤖</div>
+                        <div class="chat-bubble ai-bubble" style="background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3);">
+                            <b>Update:</b> {content}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                # Regular background tool call feedback
+                feedback_placeholder.markdown(f"<span style='color: gray; font-size: 0.85em;'><i>{msg}</i></span>", unsafe_allow_html=True)
             
         time.sleep(0.1)
         if time.time() - start_time > 600.0:
@@ -421,11 +441,14 @@ def main():
         prompt = st.session_state.processing_prompt
         st.session_state.processing_prompt = None
         
+        # Create a container for live chat updates
+        live_updates_container = st.container()
+        
         # Show an empty placeholder that will be filled with live feedback
         feedback_placeholder = st.empty()
         
         with st.spinner("⚡ Agent is reasoning and executing tools..."):
-            result = send_command(ros_node, prompt, feedback_placeholder)
+            result = send_command(ros_node, prompt, feedback_placeholder, live_updates_container)
 
         # Clear the feedback placeholder once finished
         feedback_placeholder.empty()

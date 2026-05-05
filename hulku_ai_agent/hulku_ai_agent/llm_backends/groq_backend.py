@@ -70,6 +70,8 @@ class GroqBackend(BaseLLMBackend):
         if tools:
             kwargs["tools"] = self._convert_tools(tools)
             kwargs["tool_choice"] = "auto"
+            # uncheck if needed for parallel tool calls
+            # kwargs["parallel_tool_calls"] = False
 
         try:
             response = self._client.chat.completions.create(**kwargs)
