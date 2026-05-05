@@ -1,8 +1,5 @@
 """
-HulkuBot AI Agent — Streamlit Chat Interface
-
-A modern chat UI that sends natural language commands to the 
-hulku_ai_agent action server via ROS 2.
+HulkuBot AI Agent — Premium Streamlit Chat Interface
 """
 
 import json
@@ -22,84 +19,226 @@ from custom_interfaces.action import ArmTask
 # PAGE CONFIG
 # ═══════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="HulkuBot AI Agent",
-    page_icon="🤖",
+    page_title="HulkuBot AI",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ═══════════════════════════════════════════════════════════
-# CUSTOM CSS
+# CUSTOM CSS (PREMIUM DESIGN)
 # ═══════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
+    /* Global Typography & Hide Defaults */
     html, body, [class*="st-"] {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Outfit', sans-serif;
     }
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
 
-    /* Main background */
+    /* Main App Background */
     .stApp {
-        background: linear-gradient(135deg, #0f0c29 0%, #1a1a2e 50%, #16213e 100%);
+        background: #0a0a0f;
+        background-image: 
+            radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+            radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.08) 0%, transparent 50%);
+        color: #f1f5f9;
     }
 
-    /* Sidebar */
+    /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background: rgba(15, 12, 41, 0.95);
-        border-right: 1px solid rgba(99, 102, 241, 0.2);
+        background: rgba(15, 15, 20, 0.95);
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+    }
+    
+    /* Bottom Block Background overrides */
+    [data-testid="stBottom"], 
+    [data-testid="stBottom"] > div,
+    [data-testid="stBottomBlockContainer"] {
+        background: transparent !important;
+        background-color: transparent !important;
     }
 
-    /* Chat messages */
-    .stChatMessage {
-        background: rgba(30, 30, 60, 0.6) !important;
-        border: 1px solid rgba(99, 102, 241, 0.15) !important;
-        border-radius: 12px !important;
-        backdrop-filter: blur(10px);
+    /* Input Container & Pill styling */
+    .stChatInputContainer {
+        padding-bottom: 20px !important;
+        background: transparent !important;
     }
-
-    /* Input box */
     .stChatInput > div {
-        background: rgba(30, 30, 60, 0.8) !important;
+        background: rgba(20, 20, 30, 0.8) !important;
         border: 1px solid rgba(99, 102, 241, 0.3) !important;
-        border-radius: 12px !important;
+        border-radius: 20px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+        transition: all 0.3s ease;
+    }
+    .stChatInput > div:focus-within {
+        border-color: #8b5cf6 !important;
+        box-shadow: 0 0 15px rgba(139, 92, 246, 0.3) !important;
     }
 
-    /* Buttons */
-    .stButton > button {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
-        color: white !important;
+    /* Force inner Streamlit/Baseweb elements to be transparent */
+    .stChatInput [data-baseweb="textarea"],
+    .stChatInput [data-baseweb="input"],
+    .stChatInput [data-baseweb="base-input"] {
+        background-color: transparent !important;
+        background: transparent !important;
         border: none !important;
-        border-radius: 8px !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
     }
-    .stButton > button:hover {
-        transform: translateY(-1px) !important;
-        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4) !important;
+    .stChatInput textarea {
+        color: #f1f5f9 !important;
+        background-color: transparent !important;
     }
-
-    /* Status indicators */
-    .status-connected { color: #34d399; font-weight: 600; }
-    .status-disconnected { color: #f87171; font-weight: 600; }
-
-    /* Tool call indicator */
-    .tool-call {
-        background: rgba(99, 102, 241, 0.15);
-        border-left: 3px solid #6366f1;
-        padding: 8px 12px;
-        border-radius: 0 8px 8px 0;
-        margin: 4px 0;
-        font-size: 0.85em;
+    /* Hide the default send button background */
+    .stChatInput button {
+        background-color: transparent !important;
     }
 
-    /* Header gradient text */
+    /* Gradient Text */
     .gradient-text {
-        background: linear-gradient(135deg, #6366f1, #a78bfa, #34d399);
+        background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 2em;
         font-weight: 700;
+        font-size: 2.2rem;
+        margin-bottom: 5px;
+        letter-spacing: -0.5px;
+    }
+
+    .sub-text {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+
+    /* Custom Chat Bubbles */
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .chat-bubble-wrapper {
+        display: flex;
+        align-items: flex-end;
+        animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .user-wrapper {
+        justify-content: flex-end;
+    }
+    
+    .ai-wrapper {
+        justify-content: flex-start;
+    }
+
+    .avatar {
+        width: 38px;
+        height: 38px;
+        min-width: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin: 0 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        border: 2px solid rgba(255,255,255,0.1);
+    }
+
+    .user-avatar {
+        background: linear-gradient(135deg, #ec4899, #f43f5e);
+    }
+
+    .ai-avatar {
+        background: linear-gradient(135deg, #3b82f6, #6366f1);
+    }
+
+    .chat-bubble {
+        max-width: 75%;
+        padding: 14px 20px;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    .user-bubble {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: white;
+        border-radius: 20px 20px 4px 20px;
+    }
+
+    .ai-bubble {
+        background: rgba(30, 30, 40, 0.85);
+        color: #f1f5f9;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px 20px 20px 4px;
+        backdrop-filter: blur(12px);
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Sidebar Items */
+    .tool-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        background: rgba(99, 102, 241, 0.15);
+        color: #a5b4fc;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 6px;
+        margin-right: 6px;
+    }
+
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+    .status-on {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        color: #34d399;
+    }
+    .status-off {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #f87171;
+    }
+    .status-dot {
+        width: 8px; height: 8px; border-radius: 50%; margin-right: 10px;
+    }
+    .status-on .status-dot { background: #34d399; box-shadow: 0 0 8px #34d399; }
+    .status-off .status-dot { background: #f87171; box-shadow: 0 0 8px #f87171; }
+
+    /* Button Override */
+    .stButton > button {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #e2e8f0 !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 10px !important;
+        font-weight: 500 !important;
+        transition: all 0.2s;
+    }
+    .stButton > button:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border-color: #f43f5e !important;
+        color: #f43f5e !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -134,40 +273,57 @@ def setup_ros():
 # ACTION CLIENT LOGIC
 # ═══════════════════════════════════════════════════════════
 def send_command(node, user_message: str) -> dict:
-    """
-    Send a natural language command to the agent and wait for result.
-    Returns dict with 'success' and 'message'.
-    """
     if not node.action_client.wait_for_server(timeout_sec=5.0):
-        return {"success": False, "message": "❌ Agent server '/arm_command' not available!"}
+        return {"success": False, "message": "ROS 2 action server '/arm_command' not found. Is the agent node running?"}
 
     goal_msg = ArmTask.Goal()
     goal_msg.json_command = user_message
 
-    # Send goal
     send_future = node.action_client.send_goal_async(goal_msg)
     rclpy.spin_until_future_complete(node, send_future, timeout_sec=10.0)
 
     goal_handle = send_future.result()
     if not goal_handle or not goal_handle.accepted:
-        return {"success": False, "message": "❌ Goal was rejected by the agent."}
+        return {"success": False, "message": "Goal was rejected by the agent."}
 
-    # Wait for result
     result_future = goal_handle.get_result_async()
     rclpy.spin_until_future_complete(node, result_future, timeout_sec=60.0)
 
     if result_future.result() is None:
-        return {"success": False, "message": "❌ Timed out waiting for agent response."}
+        return {"success": False, "message": "Timed out waiting for agent response."}
 
     result = result_future.result().result
     return {"success": result.success, "message": result.message}
 
 
 # ═══════════════════════════════════════════════════════════
+# RENDER CHAT HELPER
+# ═══════════════════════════════════════════════════════════
+def render_chat_message(role: str, content: str):
+    """Renders a custom HTML chat bubble."""
+    if role == "user":
+        html = f"""
+        <div class="chat-bubble-wrapper user-wrapper">
+            <div class="chat-bubble user-bubble">{content}</div>
+            <div class="avatar user-avatar">👤</div>
+        </div>
+        """
+    else:
+        # Determine prefix for success/failure styling if we want, but keeping it unified for now
+        icon = "🤖" if "✅" in content else ("⚠️" if "❌" in content else "⚡")
+        html = f"""
+        <div class="chat-bubble-wrapper ai-wrapper">
+            <div class="avatar ai-avatar">{icon}</div>
+            <div class="chat-bubble ai-bubble">{content}</div>
+        </div>
+        """
+    st.markdown(html, unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════
 # MAIN APP
 # ═══════════════════════════════════════════════════════════
 def main():
-    # Initialize ROS
     try:
         ros_node = setup_ros()
         ros_connected = True
@@ -178,79 +334,82 @@ def main():
     # ─── SIDEBAR ──────────────────────────────────────────
     with st.sidebar:
         st.markdown('<div class="gradient-text">HulkuBot</div>', unsafe_allow_html=True)
-        st.caption("AI Agent Control Panel")
-        st.markdown("---")
-
-        # Connection status
+        st.markdown('<div class="sub-text">Intelligent Robot Arm Controller</div>', unsafe_allow_html=True)
+        
+        # Status
         if ros_connected:
-            st.markdown('🟢 <span class="status-connected">ROS 2 Connected</span>',
-                        unsafe_allow_html=True)
+            st.markdown('<div class="status-indicator status-on"><div class="status-dot"></div>ROS 2 Connected</div>', unsafe_allow_html=True)
         else:
-            st.markdown('🔴 <span class="status-disconnected">ROS 2 Disconnected</span>',
-                        unsafe_allow_html=True)
+            st.markdown('<div class="status-indicator status-off"><div class="status-dot"></div>ROS 2 Disconnected</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
-        st.markdown("### 🛠️ Available Tools")
+        st.markdown("### 🔧 Active Tools")
         st.markdown("""
-        - **move_joints** — Move arm joints (degrees)
-        - **move_gripper** — Open / Close gripper
-        - **go_home** — Return to home position
-        - **get_joint_states** — Read current position
-        - **buzzer** — Toggle buzzer ON/OFF
-        - **torque_mode** — Enable/Disable drag mode
-        """)
-
-        st.markdown("---")
-        st.markdown("### 💡 Example Commands")
-        st.markdown("""
-        - *"Move joint 1 to 45 degrees"*
-        - *"Go home and open the gripper"*
-        - *"Where is the robot right now?"*
-        - *"Turn on the buzzer"*
-        - *"Enable drag mode"*
-        """)
-
-        st.markdown("---")
-        if st.button("🗑️ Clear Chat"):
+        <span class="tool-badge">move_joints</span>
+        <span class="tool-badge">move_gripper</span>
+        <span class="tool-badge">get_joint_states</span>
+        <span class="tool-badge">go_home</span>
+        <span class="tool-badge">buzzer</span>
+        <span class="tool-badge">torque_mode</span>
+        <span class="tool-badge">wait</span>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        if st.button("🗑️ Clear Conversation"):
             st.session_state.messages = []
             st.rerun()
 
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("### 💡 Suggestions")
+        st.caption("• *Move the first joint to 45 degrees*")
+        st.caption("• *Where are your joints right now?*")
+        st.caption("• *Go home and beep the buzzer*")
+
     # ─── MAIN CHAT AREA ──────────────────────────────────
-    st.markdown('<div class="gradient-text">🤖 HulkuBot AI Agent</div>',
-                unsafe_allow_html=True)
-    st.caption("Talk to your robot using natural language. The agent reasons and acts autonomously.")
-
-    # Chat state
+    # Spacer
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
     if "messages" not in st.session_state:
-        st.session_state.messages = []
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hello! I am HulkuBot, your agentic robot assistant. What would you like me to do today?"}
+        ]
 
-    # Render chat history
+    # Container for all chat messages
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+        render_chat_message(msg["role"], msg["content"])
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Chat input
-    if prompt := st.chat_input("Tell your robot what to do..."):
+    if prompt := st.chat_input("Command the robot..."):
         if not ros_connected:
-            st.error("ROS 2 is not connected. Cannot send commands.")
+            st.error("System disconnected. Cannot send commands.")
             return
 
-        # Show user message
+        # Add and render user message instantly
         st.session_state.messages.append({"role": "user", "content": prompt})
-        st.chat_message("user").markdown(prompt)
+        
+        # We rerun to make the input box clear and user message show up immediately,
+        # but we also need to trigger the AI response. 
+        # Streamlit execution flow trick: set a flag to process response on this run
+        st.session_state.processing_prompt = prompt
+        st.rerun()
 
-        # Send to agent
-        with st.chat_message("assistant"):
-            with st.spinner("🧠 Agent is thinking and acting..."):
-                result = send_command(ros_node, prompt)
+    # Process AI response if pending
+    if hasattr(st.session_state, 'processing_prompt') and st.session_state.processing_prompt:
+        prompt = st.session_state.processing_prompt
+        st.session_state.processing_prompt = None
+        
+        with st.spinner("⚡ Agent is reasoning and executing tools..."):
+            result = send_command(ros_node, prompt)
 
-            if result["success"]:
-                response_text = f"✅ {result['message']}"
-            else:
-                response_text = f"❌ {result['message']}"
+        if result["success"]:
+            response_text = f"✅ {result['message']}"
+        else:
+            response_text = f"❌ {result['message']}"
 
-            st.markdown(response_text)
-            st.session_state.messages.append({"role": "assistant", "content": response_text})
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
+        st.rerun()
 
 
 if __name__ == "__main__":
