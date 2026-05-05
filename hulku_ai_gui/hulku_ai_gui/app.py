@@ -272,25 +272,46 @@ def setup_ros():
 # ═══════════════════════════════════════════════════════════
 # ACTION CLIENT LOGIC
 # ═══════════════════════════════════════════════════════════
-def send_command(node, user_message: str) -> dict:
+def send_command(node, user_message: str, feedback_placeholder) -> dict:
     if not node.action_client.wait_for_server(timeout_sec=5.0):
         return {"success": False, "message": "ROS 2 action server '/arm_command' not found. Is the agent node running?"}
+
+    # Thread-safe feedback sharing
+    shared_feedback = {"latest": None, "displayed": None}
+
+    def feedback_callback(feedback_msg):
+        # This is called from the ROS background thread, NEVER call st.markdown here!
+        shared_feedback["latest"] = feedback_msg.feedback.state
 
     goal_msg = ArmTask.Goal()
     goal_msg.json_command = user_message
 
-    send_future = node.action_client.send_goal_async(goal_msg)
-    rclpy.spin_until_future_complete(node, send_future, timeout_sec=10.0)
+    send_future = node.action_client.send_goal_async(goal_msg, feedback_callback=feedback_callback)
+    
+    import time
+    while not send_future.done():
+        time.sleep(0.1)
 
     goal_handle = send_future.result()
     if not goal_handle or not goal_handle.accepted:
         return {"success": False, "message": "Goal was rejected by the agent."}
 
     result_future = goal_handle.get_result_async()
-    rclpy.spin_until_future_complete(node, result_future, timeout_sec=60.0)
+    
+    # Increase timeout to 600 seconds (10 minutes) for long complex sequences with waits
+    start_time = time.time()
+    while not result_future.done():
+        # Update Streamlit UI from the MAIN thread
+        if shared_feedback["latest"] and shared_feedback["latest"] != shared_feedback["displayed"]:
+            feedback_placeholder.markdown(f"*{shared_feedback['latest']}*")
+            shared_feedback["displayed"] = shared_feedback["latest"]
+            
+        time.sleep(0.1)
+        if time.time() - start_time > 600.0:
+            return {"success": False, "message": "Timed out waiting for agent response."}
 
     if result_future.result() is None:
-        return {"success": False, "message": "Timed out waiting for agent response."}
+        return {"success": False, "message": "Result was None."}
 
     result = result_future.result().result
     return {"success": result.success, "message": result.message}
@@ -400,8 +421,14 @@ def main():
         prompt = st.session_state.processing_prompt
         st.session_state.processing_prompt = None
         
+        # Show an empty placeholder that will be filled with live feedback
+        feedback_placeholder = st.empty()
+        
         with st.spinner("⚡ Agent is reasoning and executing tools..."):
-            result = send_command(ros_node, prompt)
+            result = send_command(ros_node, prompt, feedback_placeholder)
+
+        # Clear the feedback placeholder once finished
+        feedback_placeholder.empty()
 
         if result["success"]:
             response_text = f"✅ {result['message']}"
