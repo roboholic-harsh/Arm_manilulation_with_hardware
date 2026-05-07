@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--This does not replace URDF, and is not an extension of URDF.
+    This is a format for representing semantic information about the robot structure.
+    A URDF file must exist for this robot as well, where the joints and the links that are referenced are defined
+-->
+<robot name="dofbot_urdf">
+    <!--GROUPS: Representation of a set of joints and links. This can be useful for specifying DOF to plan for, defining arms, end effectors, etc-->
+    <!--LINKS: When a link is specified, the parent joint of that link (if it exists) is automatically included-->
+    <!--JOINTS: When a joint is specified, the child link of that joint (which will always exist) is automatically included-->
+    <!--CHAINS: When a chain is specified, all the links along the chain (including endpoints) are included in the group. Additionally, all the joints that are parents to included links are also included. This means that joints along the chain and the parent joint of the base link are included in the group-->
+    <!--SUBGROUPS: Groups can also be formed by referencing to already defined group names-->
+    <group name="dofbot_arm">
+        <joint name="virtual_joint"/>
+        <joint name="arm1_Joint"/>
+        <joint name="arm2_Joint"/>
+        <joint name="arm3_Joint"/>
+        <joint name="arm4_Joint"/>
+        <joint name="Camera_Joint"/>
+    </group>
+    <group name="hand">
+        <link name="arm5_Link"/>
+        <link name="Gripping_point_Link"/>
+        <link name="Llink1_Link"/>
+        <link name="Llink2_Link"/>
+        <link name="Llink3_Link"/>
+        <link name="Rlink1_Link"/>
+        <link name="Rlink2_Link"/>
+        <link name="Rlink3_Link"/>
+    </group>
+    <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->
+    <group_state name="zero" group="dofbot_arm">
+        <joint name="arm1_Joint" value="0"/>
+        <joint name="arm2_Joint" value="0"/>
+        <joint name="arm3_Joint" value="0"/>
+        <joint name="arm4_Joint" value="0"/>
+    </group_state>
+    <group_state name="ready" group="dofbot_arm">
+        <joint name="arm1_Joint" value="0"/>
+        <joint name="arm2_Joint" value="-0.7373"/>
+        <joint name="arm3_Joint" value="0.7373"/>
+        <joint name="arm4_Joint" value="0.9628"/>
+    </group_state>
+    <group_state name="home" group="dofbot_arm">
+        <joint name="arm1_Joint" value="1.57"/>
+        <joint name="arm2_Joint" value="-1.57"/>
+        <joint name="arm3_Joint" value="1.57"/>
+        <joint name="arm4_Joint" value="1.57"/>
+    </group_state>
+    <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
+    <end_effector name="fingers" parent_link="Camera_Link" group="hand" parent_group="dofbot_arm"/>
+    <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
+    <virtual_joint name="virtual_joint" type="fixed" parent_frame="world" child_link="base_link"/>
+    <!--PASSIVE JOINT: Purpose: this element is used to mark joints that are not actuated-->
+    <passive_joint name="Llink1_Joint"/>
+    <passive_joint name="Llink2_Joint"/>
+    <passive_joint name="Llink3_Joint"/>
+    <passive_joint name="Rlink1_Joint"/>
+    <passive_joint name="Rlink2_Joint"/>
+    <passive_joint name="Rlink3_Joint"/>
+    <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
+    <disable_collisions link1="Camera_Link" link2="Gripping_point_Link" reason="Never"/>
+    <disable_collisions link1="Camera_Link" link2="Llink1_Link" reason="Never"/>
+    <disable_collisions link1="Camera_Link" link2="Llink2_Link" reason="Never"/>
+    <disable_collisions link1="Camera_Link" link2="Llink3_Link" reason="Never"/>
+    <disable_collisions link1="Camera_Link" link2="Rlink1_Link" reason="Never"/>
+    <disable_collisions link1="Camera_Link" link2="Rlink2_Link" reason="Never"/>
+    <disable_collisions link1="Camera_Link" link2="Rlink3_Link" reason="Never"/>
+    <disable_collisions link1="Camera_Link" link2="arm2_Link" reason="Never"/>
+    <disable_collisions link1="Camera_Link" link2="arm3_Link" reason="Never"/>
+    <disable_collisions link1="Camera_Link" link2="arm4_Link" reason="Adjacent"/>
+    <disable_collisions link1="Camera_Link" link2="arm5_Link" reason="Never"/>
+    <disable_collisions link1="Gripping_point_Link" link2="Llink1_Link" reason="Never"/>
+    <disable_collisions link1="Gripping_point_Link" link2="Llink2_Link" reason="Never"/>
+    <disable_collisions link1="Gripping_point_Link" link2="Llink3_Link" reason="Never"/>
+    <disable_collisions link1="Gripping_point_Link" link2="Rlink1_Link" reason="Never"/>
+    <disable_collisions link1="Gripping_point_Link" link2="Rlink2_Link" reason="Never"/>
+    <disable_collisions link1="Gripping_point_Link" link2="Rlink3_Link" reason="Never"/>
+    <disable_collisions link1="Gripping_point_Link" link2="arm1_Link" reason="Never"/>
+    <disable_collisions link1="Gripping_point_Link" link2="arm2_Link" reason="Never"/>
+    <disable_collisions link1="Gripping_point_Link" link2="arm3_Link" reason="Never"/>
+    <disable_collisions link1="Gripping_point_Link" link2="arm4_Link" reason="Default"/>
+    <disable_collisions link1="Gripping_point_Link" link2="arm5_Link" reason="Adjacent"/>
+    <disable_collisions link1="Llink1_Link" link2="Llink2_Link" reason="Adjacent"/>
+    <disable_collisions link1="Llink1_Link" link2="Llink3_Link" reason="Never"/>
+    <disable_collisions link1="Llink1_Link" link2="Rlink1_Link" reason="Default"/>
+    <disable_collisions link1="Llink1_Link" link2="Rlink2_Link" reason="Never"/>
+    <disable_collisions link1="Llink1_Link" link2="Rlink3_Link" reason="Never"/>
+    <disable_collisions link1="Llink1_Link" link2="arm1_Link" reason="Never"/>
+    <disable_collisions link1="Llink1_Link" link2="arm2_Link" reason="Never"/>
+    <disable_collisions link1="Llink1_Link" link2="arm3_Link" reason="Never"/>
+    <disable_collisions link1="Llink1_Link" link2="arm4_Link" reason="Never"/>
+    <disable_collisions link1="Llink1_Link" link2="arm5_Link" reason="Adjacent"/>
+    <disable_collisions link1="Llink2_Link" link2="Llink3_Link" reason="Default"/>
+    <disable_collisions link1="Llink2_Link" link2="Rlink1_Link" reason="Never"/>
+    <disable_collisions link1="Llink2_Link" link2="Rlink2_Link" reason="Never"/>
+    <disable_collisions link1="Llink2_Link" link2="Rlink3_Link" reason="Never"/>
+    <disable_collisions link1="Llink2_Link" link2="arm1_Link" reason="Never"/>
+    <disable_collisions link1="Llink2_Link" link2="arm2_Link" reason="Never"/>
+    <disable_collisions link1="Llink2_Link" link2="arm3_Link" reason="Never"/>
+    <disable_collisions link1="Llink2_Link" link2="arm4_Link" reason="Never"/>
+    <disable_collisions link1="Llink2_Link" link2="arm5_Link" reason="Never"/>
+    <disable_collisions link1="Llink3_Link" link2="Rlink1_Link" reason="Never"/>
+    <disable_collisions link1="Llink3_Link" link2="Rlink2_Link" reason="Never"/>
+    <disable_collisions link1="Llink3_Link" link2="Rlink3_Link" reason="Never"/>
+    <disable_collisions link1="Llink3_Link" link2="arm1_Link" reason="Never"/>
+    <disable_collisions link1="Llink3_Link" link2="arm2_Link" reason="Never"/>
+    <disable_collisions link1="Llink3_Link" link2="arm3_Link" reason="Never"/>
+    <disable_collisions link1="Llink3_Link" link2="arm4_Link" reason="Never"/>
+    <disable_collisions link1="Llink3_Link" link2="arm5_Link" reason="Adjacent"/>
+    <disable_collisions link1="Rlink1_Link" link2="Rlink2_Link" reason="Adjacent"/>
+    <disable_collisions link1="Rlink1_Link" link2="Rlink3_Link" reason="Never"/>
+    <disable_collisions link1="Rlink1_Link" link2="arm1_Link" reason="Never"/>
+    <disable_collisions link1="Rlink1_Link" link2="arm2_Link" reason="Never"/>
+    <disable_collisions link1="Rlink1_Link" link2="arm3_Link" reason="Never"/>
+    <disable_collisions link1="Rlink1_Link" link2="arm4_Link" reason="Never"/>
+    <disable_collisions link1="Rlink1_Link" link2="arm5_Link" reason="Adjacent"/>
+    <disable_collisions link1="Rlink2_Link" link2="Rlink3_Link" reason="Default"/>
+    <disable_collisions link1="Rlink2_Link" link2="arm1_Link" reason="Never"/>
+    <disable_collisions link1="Rlink2_Link" link2="arm2_Link" reason="Never"/>
+    <disable_collisions link1="Rlink2_Link" link2="arm3_Link" reason="Never"/>
+    <disable_collisions link1="Rlink2_Link" link2="arm4_Link" reason="Never"/>
+    <disable_collisions link1="Rlink2_Link" link2="arm5_Link" reason="Never"/>
+    <disable_collisions link1="Rlink3_Link" link2="arm1_Link" reason="Never"/>
+    <disable_collisions link1="Rlink3_Link" link2="arm2_Link" reason="Never"/>
+    <disable_collisions link1="Rlink3_Link" link2="arm3_Link" reason="Never"/>
+    <disable_collisions link1="Rlink3_Link" link2="arm4_Link" reason="Never"/>
+    <disable_collisions link1="Rlink3_Link" link2="arm5_Link" reason="Adjacent"/>
+    <disable_collisions link1="arm1_Link" link2="arm2_Link" reason="Adjacent"/>
+    <disable_collisions link1="arm1_Link" link2="arm3_Link" reason="Never"/>
+    <disable_collisions link1="arm1_Link" link2="arm5_Link" reason="Never"/>
+    <disable_collisions link1="arm1_Link" link2="base_link" reason="Adjacent"/>
+    <disable_collisions link1="arm2_Link" link2="arm3_Link" reason="Adjacent"/>
+    <disable_collisions link1="arm2_Link" link2="arm4_Link" reason="Never"/>
+    <disable_collisions link1="arm2_Link" link2="arm5_Link" reason="Never"/>
+    <disable_collisions link1="arm2_Link" link2="base_link" reason="Never"/>
+    <disable_collisions link1="arm3_Link" link2="arm4_Link" reason="Adjacent"/>
+    <disable_collisions link1="arm3_Link" link2="arm5_Link" reason="Never"/>
+    <disable_collisions link1="arm3_Link" link2="base_link" reason="Never"/>
+    <disable_collisions link1="arm4_Link" link2="arm5_Link" reason="Adjacent"/>
+</robot>

@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="dofbot_urdf_ros2_control" params="name initial_positions_file">
+        <xacro:property name="initial_positions" value="${load_yaml(initial_positions_file)['initial_positions']}"/>
+
+        <ros2_control name="${name}" type="system">
+            <hardware>
+                <plugin>dofbot_hardware/DofbotSystemHardware</plugin>
+            </hardware>
+            <joint name="arm1_Joint">
+                <command_interface name="position"/>
+                <state_interface name="position">
+                  <param name="initial_value">${initial_positions['arm1_Joint']}</param>
+                </state_interface>
+            </joint>
+            <joint name="arm2_Joint">
+                <command_interface name="position"/>
+                <state_interface name="position">
+                  <param name="initial_value">${initial_positions['arm2_Joint']}</param>
+                </state_interface>
+            </joint>
+            <joint name="arm3_Joint">
+                <command_interface name="position"/>
+                <state_interface name="position">
+                  <param name="initial_value">${initial_positions['arm3_Joint']}</param>
+                </state_interface>
+            </joint>
+            <joint name="arm4_Joint">
+                <command_interface name="position"/>
+                <state_interface name="position">
+                  <param name="initial_value">${initial_positions['arm4_Joint']}</param>
+                </state_interface>
+            </joint>
+
+            <gpio name="aux_hardware">
+                <!-- RGB Control -->
+                <command_interface name="led_r"/>
+                <command_interface name="led_g"/>
+                <command_interface name="led_b"/>
+                
+                <!-- Torque Control -->
+                <command_interface name="torque_enable"/>
+                
+                <!-- Buzzer Control -->
+                <command_interface name="buzzer_trigger"/>
+            </gpio>
+
+        </ros2_control>
+    </xacro:macro>
+</robot>

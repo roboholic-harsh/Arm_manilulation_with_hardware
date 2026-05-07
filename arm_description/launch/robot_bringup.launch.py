@@ -29,6 +29,12 @@ def generate_launch_description():
         arguments=["arm_controller"],
     )
 
+    load_gpio_controller = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gpio_controller"],
+    )
+
     # 4. MoveIt MoveGroup
     move_group_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
@@ -49,5 +55,6 @@ def generate_launch_description():
         TimerAction(period=2.0, actions=[jsb_spawner]),
         TimerAction(period=4.0, actions=[arm_controller_spawner]),
         TimerAction(period=6.0, actions=[move_group_launch]),
-        TimerAction(period=8.0, actions=[rviz_launch])
+        TimerAction(period=8.0, actions=[rviz_launch]),
+        TimerAction(period=10.0, actions=[load_gpio_controller]),
     ])

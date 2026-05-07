@@ -51,6 +51,12 @@ def generate_launch_description():
         executable="spawner",
         arguments=["arm_controller"],
     )
+
+    load_gpio_controller = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gpio_controller"],
+    )
     # Launch them all!
     return LaunchDescription([
         rsp,
@@ -58,4 +64,5 @@ def generate_launch_description():
         spawn_entity,
         load_joint_state_broadcaster,
         load_arm_controller,
+        load_gpio_controller
     ])

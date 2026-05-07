@@ -28,10 +28,20 @@ std::vector<hardware_interface::StateInterface> DofbotSystemHardware::export_sta
 std::vector<hardware_interface::CommandInterface> DofbotSystemHardware::export_command_interfaces()
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
+  
+  // 1. Export Joints
   for (uint i = 0; i < info_.joints.size(); i++) {
     command_interfaces.emplace_back(hardware_interface::CommandInterface(
       info_.joints[i].name, hardware_interface::HW_IF_POSITION, &hw_commands_[i]));
   }
+
+  // 2. Export GPIOs
+  command_interfaces.emplace_back(hardware_interface::CommandInterface("aux_hardware", "led_r", &hw_led_r_));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface("aux_hardware", "led_g", &hw_led_g_));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface("aux_hardware", "led_b", &hw_led_b_));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface("aux_hardware", "torque_enable", &hw_torque_));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface("aux_hardware", "buzzer_trigger", &hw_buzzer_));
+
   return command_interfaces;
 }
 
@@ -99,10 +109,10 @@ hardware_interface::return_type DofbotSystemHardware::read(const rclcpp::Time & 
       }
       
       if (calc_check == state.checksum) {
-        static int debug_counter = 0;
-        bool print_debug = (debug_counter++ % 10 == 0); 
+        // static int debug_counter = 0;
+        // bool print_debug = (debug_counter++ % 10 == 0); 
 
-        if (print_debug) RCLCPP_INFO(rclcpp::get_logger("DofbotSystemHardware"), "--- ENCODER DATA OK ---");
+        // if (print_debug) RCLCPP_INFO(rclcpp::get_logger("DofbotSystemHardware"), "--- ENCODER DATA OK ---");
 
         for (int i = 0; i < 4; i++) {
           int16_t raw_angle = state.angles[i];
@@ -110,7 +120,7 @@ hardware_interface::return_type DofbotSystemHardware::read(const rclcpp::Time & 
           if (raw_angle == -1) continue; 
 
           double new_rad = deg_to_rad(raw_angle);
-          if (print_debug) RCLCPP_INFO(rclcpp::get_logger("DofbotSystemHardware"), " Joint %d: %d deg -> %.3f rad", i+1, raw_angle, new_rad);
+          // if (print_debug) RCLCPP_INFO(rclcpp::get_logger("DofbotSystemHardware"), " Joint %d: %d deg -> %.3f rad", i+1, raw_angle, new_rad);
 
           double diff = std::abs(new_rad - hw_states_[i]);
           if (diff > 0.52 && hw_states_[i] != 0.0) continue; 
@@ -176,13 +186,13 @@ hardware_interface::return_type DofbotSystemHardware::write(const rclcpp::Time &
     std::string j_name = info_.joints[i].name;
     int16_t deg_val = rad_to_deg(hw_commands_[i]);
 
-    if (j_name == "link_1_joint") {
+    if (j_name == "arm1_Joint") {
         cmd.params[0] = deg_val;
-    } else if (j_name == "link_2_joint") {
+    } else if (j_name == "arm2_Joint") {
         cmd.params[1] = deg_val;
-    } else if (j_name == "link_3_joint") {
+    } else if (j_name == "arm3_Joint") {
         cmd.params[2] = deg_val;
-    } else if (j_name == "link_4_joint") {
+    } else if (j_name == "arm4_Joint") {
         cmd.params[3] = deg_val;
     }
   }
@@ -191,12 +201,12 @@ hardware_interface::return_type DofbotSystemHardware::write(const rclcpp::Time &
 
   // ====== WRITE X-RAY ======
   // Prints the actual degrees being sent to the USB wire (once per second)
-  static int write_debug = 0;
-  if (write_debug++ % 20 == 0) {
-     RCLCPP_INFO(rclcpp::get_logger("DofbotSystemHardware"), 
-     "TRANSMITTING -> J1: %d | J2: %d | J3: %d | J4: %d", 
-     cmd.params[0], cmd.params[1], cmd.params[2], cmd.params[3]);
-  }
+  // static int write_debug = 0;
+  // if (write_debug++ % 20 == 0) {
+  //    RCLCPP_INFO(rclcpp::get_logger("DofbotSystemHardware"), 
+  //    "TRANSMITTING -> J1: %d | J2: %d | J3: %d | J4: %d", 
+  //    cmd.params[0], cmd.params[1], cmd.params[2], cmd.params[3]);
+  // }
   // =========================
 
   cmd.checksum = cmd.cmd_type;
@@ -209,6 +219,95 @@ hardware_interface::return_type DofbotSystemHardware::write(const rclcpp::Time &
     std::string tx_data(reinterpret_cast<const char*>(&cmd), sizeof(CommandPacket));
     serial_conn_.Write(tx_data);
   } catch (...) { }
+// --------------------------------------------------------
+  // 2. Check and send RGB commands
+  // --------------------------------------------------------
+// --------------------------------------------------------
+  // 2. Check and send RGB commands
+  // --------------------------------------------------------
+  if (hw_led_r_ != prev_led_r_ || hw_led_g_ != prev_led_g_ || hw_led_b_ != prev_led_b_) {
+    CommandPacket rgb_cmd;
+    rgb_cmd.header = 0xA6;
+    rgb_cmd.cmd_type = 2; 
+    rgb_cmd.params[0] = static_cast<int16_t>(hw_led_r_);
+    rgb_cmd.params[1] = static_cast<int16_t>(hw_led_g_);
+    rgb_cmd.params[2] = static_cast<int16_t>(hw_led_b_);
+    rgb_cmd.params[3] = 0;
+    rgb_cmd.params[4] = 0;
+    
+    rgb_cmd.checksum = rgb_cmd.cmd_type;
+    uint8_t* param_bytes = (uint8_t*)&rgb_cmd.params;
+    for (size_t i = 0; i < sizeof(rgb_cmd.params); i++) rgb_cmd.checksum += param_bytes[i];
+    
+    // ==========================================
+    // CRITICAL DEBUG PRINT - DO NOT REMOVE THIS
+    // ==========================================
+    RCLCPP_INFO(rclcpp::get_logger("DofbotSystemHardware"), 
+      ">>> ROS TRIGGERED RGB CHANGE! Sending -> R:%d G:%d B:%d", 
+      rgb_cmd.params[0], rgb_cmd.params[1], rgb_cmd.params[2]);
+
+    try {
+      std::string tx_data(reinterpret_cast<const char*>(&rgb_cmd), sizeof(CommandPacket));
+      serial_conn_.Write(tx_data);
+    } catch (...) { }
+    
+    prev_led_r_ = hw_led_r_; prev_led_g_ = hw_led_g_; prev_led_b_ = hw_led_b_;
+  }
+  // --------------------------------------------------------
+  // 3. Check and send Torque commands
+  // --------------------------------------------------------
+// --------------------------------------------------------
+  // 3. Check and send Torque commands
+  // --------------------------------------------------------
+  if (hw_torque_ != prev_torque_) {
+    CommandPacket torque_cmd;
+    torque_cmd.header = 0xA6;
+    torque_cmd.cmd_type = 3; 
+    torque_cmd.params[0] = static_cast<int16_t>(hw_torque_);
+    for(int i=1; i<5; i++) torque_cmd.params[i] = 0; 
+    
+    torque_cmd.checksum = torque_cmd.cmd_type;
+    uint8_t* param_bytes = (uint8_t*)&torque_cmd.params;
+    for (size_t i = 0; i < sizeof(torque_cmd.params); i++) torque_cmd.checksum += param_bytes[i];
+    
+    // ---> ADD THIS DEBUG PRINT <---
+    RCLCPP_INFO(rclcpp::get_logger("DofbotSystemHardware"), 
+      ">>> ROS TRIGGERED TORQUE CHANGE! Sending -> %d", torque_cmd.params[0]);
+
+    try {
+      std::string tx_data(reinterpret_cast<const char*>(&torque_cmd), sizeof(CommandPacket));
+      serial_conn_.Write(tx_data);
+    } catch (...) { }
+    
+    prev_torque_ = hw_torque_;
+  }
+
+  // --------------------------------------------------------
+  // 4. Check and send Buzzer commands
+  // --------------------------------------------------------
+  if (hw_buzzer_ != prev_buzzer_) {
+    CommandPacket buzz_cmd;
+    buzz_cmd.header = 0xA6;
+    buzz_cmd.cmd_type = 4; 
+    buzz_cmd.params[0] = static_cast<int16_t>(hw_buzzer_);
+    for(int i=1; i<5; i++) buzz_cmd.params[i] = 0; // Zero out the rest
+    
+    buzz_cmd.checksum = buzz_cmd.cmd_type;
+    uint8_t* param_bytes = (uint8_t*)&buzz_cmd.params;
+    for (size_t i = 0; i < sizeof(buzz_cmd.params); i++) buzz_cmd.checksum += param_bytes[i];
+    
+    try {
+      std::string tx_data(reinterpret_cast<const char*>(&buzz_cmd), sizeof(CommandPacket));
+      serial_conn_.Write(tx_data);
+    } catch (...) { }
+    
+    prev_buzzer_ = hw_buzzer_;
+  }
+
+
+
+
+
 
   return hardware_interface::return_type::OK;
 }

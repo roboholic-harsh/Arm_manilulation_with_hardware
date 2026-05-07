@@ -45,5 +45,17 @@
             </command_interface>
             <state_interface name="position"/>
         </joint>
+        <gpio name="aux_hardware">
+        <!-- RGB Control -->
+        <command_interface name="led_r"/>
+        <command_interface name="led_g"/>
+        <command_interface name="led_b"/>
+        
+        <!-- Torque Control -->
+        <command_interface name="torque_enable"/>
+        
+        <!-- Buzzer Control -->
+        <command_interface name="buzzer_trigger"/>
+        </gpio>
     </ros2_control>
 </robot>

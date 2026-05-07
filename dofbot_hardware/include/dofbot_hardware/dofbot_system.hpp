@@ -47,6 +47,22 @@ private:
   
   int16_t rad_to_deg(double rad);
   double deg_to_rad(int16_t deg);
+
+  // Existing joint variables...
+  std::vector<double> hw_commands_positions_;
+  std::vector<double> hw_states_positions_;
+
+  // NEW: GPIO Command variables
+  double hw_led_r_{0.0};
+  double hw_led_g_{255.0}; // Default to Green
+  double hw_led_b_{0.0};
+  double hw_torque_{1.0};  // Default to Torque ON
+  double hw_buzzer_{0.0};  // Default to Buzzer OFF
+
+  // State trackers to prevent spamming the serial port
+  double prev_led_r_{-1}, prev_led_g_{-1}, prev_led_b_{-1};
+  double prev_torque_{-1};
+  double prev_buzzer_{-1};
 };
 }  // namespace dofbot_hardware
 

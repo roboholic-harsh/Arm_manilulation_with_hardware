@@ -30,9 +30,9 @@
     </group_state>
     <group_state name="ready" group="halku_arm">
         <joint name="link_1_joint" value="0"/>
-        <joint name="link_2_joint" value="0.4773"/>
-        <joint name="link_3_joint" value="-0.998"/>
-        <joint name="link_4_joint" value="-0.9285"/>
+        <joint name="link_2_joint" value="-0.4773"/>
+        <joint name="link_3_joint" value="0.998"/>
+        <joint name="link_4_joint" value="0.9285"/>
     </group_state>
     <group_state name="home" group="halku_arm">
         <joint name="link_1_joint" value="0"/>

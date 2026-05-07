@@ -1,0 +1,36 @@
+# This config file is used by ros2_control
+controller_manager:
+  ros__parameters:
+    update_rate: 20  # Hz
+
+    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    gpio_controller:
+      type: forward_command_controller/MultiInterfaceForwardCommandController
+
+arm_controller:
+  ros__parameters:
+    joints:
+      - arm1_Joint
+      - arm2_Joint
+      - arm3_Joint
+      - arm4_Joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+
+gpio_controller:
+  ros__parameters:
+    joint: aux_hardware
+    interface_names:
+      - led_r
+      - led_g
+      - led_b
+      - torque_enable
+      - buzzer_trigger

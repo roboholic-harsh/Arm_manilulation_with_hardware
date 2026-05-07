@@ -9,6 +9,10 @@ controller_manager:
     arm_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
+    gpio_controller:
+      type: forward_command_controller/MultiInterfaceForwardCommandController
+
+
 arm_controller:
   ros__parameters:
     joints:
@@ -23,3 +27,13 @@ arm_controller:
     state_interfaces:
       - position
       # - velocity
+
+gpio_controller:
+  ros__parameters:
+    joint: aux_hardware
+    interface_names:
+      - led_r
+      - led_g
+      - led_b
+      - torque_enable
+      - buzzer_trigger
