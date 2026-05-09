@@ -169,66 +169,18 @@ Today (POC)                          Tomorrow (SaaS Platform)
 4 joints                       →     6+ DOF arms, grippers, conveyors
 10 tools                       →     100+ industry-specific tools
 Local setup                    →     Cloud-hosted, deploy in minutes
-1 user                         →     Multi-user, role-based access
-English only                   →     Multilingual (Hindi, German, Chinese...)
 ```
 
 ### Product Roadmap
 
-| Phase | Timeline | Deliverable |
-|-------|----------|-------------|
-| **Phase 1** ✅ | Completed | Working POC — NLP-controlled 4-DOF arm with AI agent |
-| **Phase 2** | 3–6 months | Universal robot adapter SDK — support UR, FANUC, ABB |
-| **Phase 3** | 6–12 months | Cloud SaaS platform — multi-tenant, dashboard, analytics |
-| **Phase 4** | 12–18 months | Voice control, vision integration, predictive maintenance |
-| **Phase 5** | 18–24 months | Fleet management — control multiple robots from one interface |
+| Phase | Deliverable |
+|-------|----------|
+| **Phase 1** (completed)| Working POC — NLP-controlled 4-DOF arm with AI agent |
+| **Phase 2** | Voice control, vision integration, predictive maintenance |
+| **Phase 3** | Universal robot adapter SDK — support UR, FANUC, ABB |
+| **Phase 4** | Fleet management — control multiple robots from one interface |
+| **Phase 5** | Cloud SaaS platform — multi-tenant, dashboard, analytics |
 
----
-
-## 💡 Why This Matters
-
-### For Factory Owners
-- **Slash downtime** from days to seconds when changing tasks
-- **Empower existing workers** — no need to hire expensive robotics engineers
-- **ROI in weeks**, not years
-
-### For Robot Manufacturers
-- **Differentiate your hardware** with an intelligent software layer
-- **Expand your market** to customers who couldn't afford integrators
-- **Recurring SaaS revenue** on top of hardware sales
-
-### For the Industry
-- **Democratize automation** — make robotics accessible to SMEs
-- **Accelerate adoption** — lower the barrier from "can we find an engineer?" to "just tell the robot what to do"
-- **Reduce waste** — faster retooling means more flexible, sustainable manufacturing
-
----
-
-## 🎯 Target Market
-
-| Segment | Pain Point | Our Solution |
-|---------|-----------|-------------|
-| **SME manufacturers** | Can't afford robotics engineers | No-code robot operation |
-| **Automotive & electronics** | Long retooling downtime | Instant NLP reconfiguration |
-| **Logistics & warehousing** | Frequent task changes | Conversational task switching |
-| **Education & research** | Steep learning curve | Natural language experimentation |
-| **Robot OEMs** | Need software differentiation | White-label NLP layer |
-
----
-
-## 🏆 Competitive Advantage
-
-| Feature | Us | Traditional Teach Pendants | Other NLP Solutions |
-|---------|-----|--------------------------|---------------------|
-| Natural language control | ✅ Full conversational AI | ❌ Button/joystick only | ⚠️ Basic keyword matching |
-| Multi-step reasoning | ✅ Autonomous planning | ❌ Manual step-by-step | ❌ Single commands only |
-| Motion planning | ✅ Collision-aware (MoveIt) | ⚠️ Basic linear moves | ❌ No planning |
-| Multi-brand support | 🔜 Roadmap (Phase 2) | ❌ Vendor-locked | ❌ Vendor-locked |
-| Real-time feedback | ✅ Live tool execution | ❌ No visibility | ❌ No feedback |
-| Cloud-ready | 🔜 Roadmap (Phase 3) | ❌ On-premise only | ❌ On-premise only |
-| Open LLM support | ✅ Gemini + Groq + Local | ❌ N/A | ⚠️ OpenAI only |
-
----
 
 ## 👥 Team
 
@@ -237,18 +189,10 @@ English only                   →     Multilingual (Hindi, German, Chinese...)
 | **Harsh Jadav** | Full-stack robotics engineer — hardware, ROS 2, AI agent |
 | **Kathan Shah** | Robotics & AI developer |
 
----
-
-## 📞 Contact
-
-📧 **harshpjadav165@gmail.com**  
-🔗 **GitHub:** [roboholic-harsh](https://github.com/roboholic-harsh)
 
 ---
 
 <p align="center">
-  <br>
-  <em>"The best interface for a robot is no interface at all — just tell it what you want."</em>
   <br><br>
   <strong>Dofbot AI — Making Robotics as Easy as Having a Conversation.</strong>
 </p>
