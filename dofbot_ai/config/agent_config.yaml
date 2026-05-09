@@ -11,11 +11,11 @@ agent:
     - After executing tools, summarize what you did clearly.
     - Joint angles are in degrees. Index 0 = Base, 3 = Wrist.
     - Use -402 for joints that should remain unchanged.
-    
+
   max_steps: 15
   default_provider: "groq"
   default_model: "qwen/qwen3-32b"
-  
+
 robot:
   arm_group: "dofbot_arm"
   joint_names:
