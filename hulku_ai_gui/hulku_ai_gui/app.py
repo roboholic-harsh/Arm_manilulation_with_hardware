@@ -240,7 +240,61 @@ st.markdown("""
         border-color: #f43f5e !important;
         color: #f43f5e !important;
     }
+
+    /* Microphone Recorder Base Styles */
+    iframe[title="audio_recorder_streamlit.audio_recorder"] {
+        background-color: transparent !important;
+        border: none !important;
+        filter: invert(1) hue-rotate(180deg);
+        opacity: 0.8;
+        transition: opacity 0.2s;
+        margin-top: 5px;
+    }
+    iframe[title="audio_recorder_streamlit.audio_recorder"]:hover {
+        opacity: 1.0;
+    }
 </style>
+
+<script>
+// This script runs continuously in the parent window to perfectly integrate the microphone
+function moveMic() {
+    const parent = window.parent.document;
+    const audioIframe = parent.querySelector('iframe[title="audio_recorder_streamlit.audio_recorder"]');
+    const sendBtn = parent.querySelector('[data-testid="stChatInputSubmitButton"]');
+    
+    if (audioIframe && sendBtn) {
+        const sendWrapper = sendBtn.parentNode;
+        
+        // If the mic is not already perfectly placed in the sendWrapper
+        if (audioIframe.parentNode !== sendWrapper) {
+            
+            // 1. Hide the original Streamlit wrapper so it doesn't create a blank black bar
+            const stContainer = audioIframe.closest('.element-container');
+            if (stContainer) {
+                // Hide the parent of the element container to completely remove the block
+                const verticalBlock = stContainer.parentNode;
+                if(verticalBlock) verticalBlock.style.display = 'none';
+            }
+            
+            // 2. Style the iframe to fit natively
+            audioIframe.style.position = "static";
+            audioIframe.style.width = "45px";
+            audioIframe.style.height = "45px";
+            audioIframe.style.marginRight = "8px";
+            
+            // 3. Make the send wrapper a flexbox to hold both icons side-by-side
+            sendWrapper.style.display = "flex";
+            sendWrapper.style.alignItems = "center";
+            sendWrapper.style.flexDirection = "row-reverse"; // Put mic on the left of the send button
+            
+            // 4. Move the iframe!
+            sendWrapper.appendChild(audioIframe);
+        }
+    }
+}
+// Run periodically to ensure it attaches after React renders
+setInterval(moveMic, 500);
+</script>
 """, unsafe_allow_html=True)
 
 
@@ -422,7 +476,65 @@ def main():
     st.markdown('</div>', unsafe_allow_html=True)
 
     # Chat input
-    if prompt := st.chat_input("Command the robot..."):
+    prompt = st.chat_input("Command the robot...")
+
+    # Voice input (floating over the chat input via CSS)
+    from audio_recorder_streamlit import audio_recorder
+    audio_bytes = audio_recorder(
+        text="",
+        recording_color="#f43f5e",
+        neutral_color="#a5b4fc",
+        icon_name="microphone",
+        icon_size="2x",
+        key="voice_recorder"
+    )
+
+    # Process voice command
+    if audio_bytes and st.session_state.get('last_audio_bytes') != audio_bytes:
+        st.toast("🎙️ Audio captured successfully!", icon="✅")
+        st.session_state['last_audio_bytes'] = audio_bytes
+        
+        if not ros_connected:
+            st.error("System disconnected. Cannot send voice commands.")
+        else:
+            with st.spinner("🎙️ Transcribing voice via Whisper..."):
+                try:
+                    import os
+                    from groq import Groq
+                    client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+                    transcription = client.audio.transcriptions.create(
+                        file=("command.wav", audio_bytes),
+                        model="whisper-large-v3",
+                    )
+                    prompt_text = transcription.text.strip()
+                except Exception as e:
+                    st.error(f"Voice transcription failed: {e}")
+                    prompt_text = None
+
+            if prompt_text:
+                # Save transcribed text to be injected into the chat box
+                st.session_state.voice_transcription = prompt_text
+                st.rerun()
+
+    # If we have a voice transcription pending, inject it into the Streamlit chat input box
+    if st.session_state.get("voice_transcription"):
+        js_code = f"""
+        <script>
+            const chatInput = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+            if(chatInput) {{
+                let nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+                nativeInputValueSetter.call(chatInput, `{st.session_state.voice_transcription}`);
+                let ev = new Event('input', {{ bubbles: true}});
+                chatInput.dispatchEvent(ev);
+            }}
+        </script>
+        """
+        import streamlit.components.v1 as components
+        components.html(js_code, width=0, height=0)
+        st.session_state.voice_transcription = None
+
+    # Process text command
+    if prompt and not st.session_state.get('processing_prompt'):
         if not ros_connected:
             st.error("System disconnected. Cannot send commands.")
             return

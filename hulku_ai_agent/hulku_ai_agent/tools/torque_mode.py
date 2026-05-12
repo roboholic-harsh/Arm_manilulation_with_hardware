@@ -1,7 +1,6 @@
-"""Toggle torque (Drag & Teach mode) via ROS service on hulku_hardware."""
+"""Toggle torque (Drag & Teach mode) via gpio_controller topic."""
 
-import rclpy
-from std_srvs.srv import SetBool
+from std_msgs.msg import Float64MultiArray
 from hulku_ai_agent.tools.base_tool import BaseTool, ToolResult
 
 
@@ -23,22 +22,15 @@ class TorqueModeTool(BaseTool):
         "required": ["enabled"],
     }
 
-    def __init__(self, node):
+    def __init__(self, node, gpio_pub, gpio_state):
         self._node = node
-        self._client = node.create_client(SetBool, '/hulku_hardware/torque')
+        self._pub = gpio_pub
+        self._state = gpio_state  # shared list [buzzer, torque, r, g, b]
 
     def execute(self, enabled: bool = True, **kwargs) -> ToolResult:
-        if not self._client.wait_for_service(timeout_sec=3.0):
-            return ToolResult(False, "Torque service not available. Is hulku_hardware running?")
+        self._state[1] = 1.0 if enabled else 0.0
+        msg = Float64MultiArray()
+        msg.data = [float(v) for v in self._state]
+        self._pub.publish(msg)
 
-        req = SetBool.Request()
-        req.data = bool(enabled)
-
-        future = self._client.call_async(req)
-        rclpy.spin_until_future_complete(self._node, future, timeout_sec=5.0)
-
-        res = future.result()
-        if res is None:
-            return ToolResult(False, "Torque service call timed out.")
-
-        return ToolResult(res.success, res.message)
+        return ToolResult(True, "Torque ON (Hold mode)" if enabled else "Torque OFF (Drag mode)")

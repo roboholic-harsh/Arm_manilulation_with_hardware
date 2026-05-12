@@ -1,40 +1,45 @@
-"""Toggle the robot buzzer via ROS service on hulku_hardware."""
+"""Toggle the robot buzzer via gpio_controller topic."""
 
-import rclpy
-from std_srvs.srv import SetBool
+import time
+from std_msgs.msg import Float64MultiArray
 from hulku_ai_agent.tools.base_tool import BaseTool, ToolResult
 
 
 class BuzzerTool(BaseTool):
     name = "buzzer"
-    description = "Turn the robot's buzzer ON or OFF."
+    description = "Turn the robot's buzzer ON or OFF, or beep for a duration (0.1s increments, max 5s)."
     parameters = {
         "type": "object",
         "properties": {
             "state": {
                 "type": "boolean",
                 "description": "true to turn buzzer ON, false to turn OFF.",
+            },
+            "duration": {
+                "type": "number",
+                "description": "Optional beep duration in seconds (0.1-5.0). If provided, buzzer beeps for this duration then stops.",
             }
         },
         "required": ["state"],
     }
 
-    def __init__(self, node):
+    def __init__(self, node, gpio_pub, gpio_state):
         self._node = node
-        self._client = node.create_client(SetBool, '/hulku_hardware/buzzer')
+        self._pub = gpio_pub
+        self._state = gpio_state  # shared list [buzzer, torque, r, g, b]
 
-    def execute(self, state: bool = False, **kwargs) -> ToolResult:
-        if not self._client.wait_for_service(timeout_sec=3.0):
-            return ToolResult(False, "Buzzer service not available. Is hulku_hardware running?")
+    def execute(self, state: bool = False, duration: float = 0.0, **kwargs) -> ToolResult:
+        if duration and duration > 0:
+            # MCU: value 1-50 = beep for 0.1s * value
+            val = min(50, max(1, int(duration * 10)))
+        else:
+            val = 255 if state else 0
 
-        req = SetBool.Request()
-        req.data = bool(state)
+        self._state[0] = float(val)
+        msg = Float64MultiArray()
+        msg.data = [float(v) for v in self._state]
+        self._pub.publish(msg)
 
-        future = self._client.call_async(req)
-        rclpy.spin_until_future_complete(self._node, future, timeout_sec=5.0)
-
-        res = future.result()
-        if res is None:
-            return ToolResult(False, "Buzzer service call timed out.")
-
-        return ToolResult(res.success, res.message)
+        if duration and duration > 0:
+            return ToolResult(True, f"Buzzer activated for {duration:.1f} seconds.")
+        return ToolResult(True, "Buzzer ON" if state else "Buzzer OFF")

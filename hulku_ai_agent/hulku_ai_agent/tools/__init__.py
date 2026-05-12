@@ -10,10 +10,12 @@ from hulku_ai_agent.tools.get_joint_states import GetJointStatesTool
 from hulku_ai_agent.tools.go_home import GoHomeTool
 from hulku_ai_agent.tools.wait import WaitTool
 from hulku_ai_agent.tools.print_message import PrintMessageTool
+from hulku_ai_agent.tools.rgb_light import RGBLightTool
 
 __all__ = [
     'BaseTool', 'ToolResult', 'ToolRegistry',
     'MoveJointsTool', 'MoveGripperTool', 'BuzzerTool',
     'TorqueModeTool', 'GetJointStatesTool', 'GoHomeTool',
-    'WaitTool', 'PrintMessageTool',
+    'WaitTool', 'PrintMessageTool', 'RGBLightTool',
 ]
+

@@ -18,12 +18,13 @@ from custom_interfaces.action import ArmTask
 from moveit_msgs.srv import GetMotionPlan
 from moveit_msgs.action import ExecuteTrajectory
 from sensor_msgs.msg import JointState
+from std_msgs.msg import Float64MultiArray
 
 from hulku_ai_agent.agent_core import AgentCore
 from hulku_ai_agent.tools import (
     ToolRegistry,
     MoveJointsTool, MoveGripperTool, BuzzerTool,
-    TorqueModeTool, GetJointStatesTool, GoHomeTool, WaitTool, PrintMessageTool
+    TorqueModeTool, GetJointStatesTool, GoHomeTool, WaitTool, PrintMessageTool, RGBLightTool
 )
 
 # Configure logging
@@ -103,6 +104,11 @@ class HulkuAgentNode(Node):
         # ==============================
         self._registry = ToolRegistry()
 
+        # GPIO controller publisher (shared by buzzer, torque, RGB tools)
+        self._gpio_pub = self.create_publisher(
+            Float64MultiArray, '/gpio_controller/commands', 10)
+        self._gpio_state = [0.0, 1.0, 0.0, 0.0, 0.0]  # [buzzer, torque, r, g, b]
+
         move_joints = MoveJointsTool(
             self, self._plan_client, self._execute_client,
             self._joint_names, self._arm_group
@@ -112,12 +118,13 @@ class HulkuAgentNode(Node):
             self, self._plan_client, self._execute_client,
             self._gripper_joint, self._gripper_group
         ))
-        self._registry.register(BuzzerTool(self))
-        self._registry.register(TorqueModeTool(self))
+        self._registry.register(BuzzerTool(self, self._gpio_pub, self._gpio_state))
+        self._registry.register(TorqueModeTool(self, self._gpio_pub, self._gpio_state))
         self._registry.register(GetJointStatesTool(self, self._joint_names))
         self._registry.register(GoHomeTool(move_joints))
         self._registry.register(WaitTool())
         self._registry.register(PrintMessageTool(self))
+        self._registry.register(RGBLightTool(self, self._gpio_pub, self._gpio_state))
 
         self.get_logger().info(f"Registered tools:\n{self._registry.list_tools()}")
 
@@ -164,11 +171,17 @@ class HulkuAgentNode(Node):
 
         elif provider == "ollama":
             from hulku_ai_agent.llm_backends.ollama_backend import OllamaBackend
-            self.get_logger().info(f"Using Ollama backend: {model}")
+            self.get_logger().info(f"Using local Ollama backend: {model}")
             return OllamaBackend(model_name=model)
+            
+        elif provider == "ollama_cloud":
+            from hulku_ai_agent.llm_backends.ollama_cloud_backend import OllamaCloudBackend
+            key = api_key or os.environ.get("OLLAMA_CLOUD_API_KEY", "")
+            self.get_logger().info(f"Using Ollama Cloud backend: {model}")
+            return OllamaCloudBackend(model_name=model, api_key=key)
 
         else:
-            raise ValueError(f"Unknown LLM provider: '{provider}'. Use 'gemini', 'groq', or 'ollama'.")
+            raise ValueError(f"Unknown LLM provider: '{provider}'. Use 'gemini', 'groq', 'ollama', or 'ollama_cloud'.")
 
     def _joint_state_cb(self, msg):
         self.current_joint_state = msg
