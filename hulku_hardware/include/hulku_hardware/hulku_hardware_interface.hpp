@@ -1,6 +1,7 @@
 #ifndef HULKU_HARDWARE__HULKU_HARDWARE_INTERFACE_HPP_
 #define HULKU_HARDWARE__HULKU_HARDWARE_INTERFACE_HPP_
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <mutex>
@@ -13,7 +14,7 @@
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "std_srvs/srv/set_bool.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 
 namespace hulku_hardware {
 
@@ -58,23 +59,16 @@ private:
   int serial_fd_ = -1;
   std::mutex serial_mutex_;
 
-  // Store commands and states
+  // Joint commands and states
   std::vector<double> hw_commands_;
   std::vector<double> hw_states_;
 
-  // ROS services for buzzer & torque (exposed via a dedicated node + thread)
-  std::shared_ptr<rclcpp::Node> service_node_;
-  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr buzzer_service_;
-  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr torque_service_;
-  std::shared_ptr<rclcpp::executors::SingleThreadedExecutor> service_executor_;
-  std::thread service_thread_;
-
-  void buzzer_callback(
-      const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-      std::shared_ptr<std_srvs::srv::SetBool::Response> response);
-  void torque_callback(
-      const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-      std::shared_ptr<std_srvs::srv::SetBool::Response> response);
+  // GPIO command values
+  // Indexes: 0=buzzer, 1=torque, 2=rgb_r, 3=rgb_g, 4=rgb_b
+  static constexpr size_t GPIO_COUNT = 5;
+  double gpio_commands_[GPIO_COUNT];
+  double gpio_states_[GPIO_COUNT];
+  double gpio_prev_[GPIO_COUNT] = {0.0};
 };
 
 } // namespace hulku_hardware

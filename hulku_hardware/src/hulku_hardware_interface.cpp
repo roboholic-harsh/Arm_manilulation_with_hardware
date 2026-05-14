@@ -105,6 +105,16 @@ HulkuHardwareInterface::on_init(const hardware_interface::HardwareInfo &info) {
     }
   }
 
+  // Initialize GPIO command arrays to zero
+  for (size_t i = 0; i < GPIO_COUNT; i++) {
+    gpio_commands_[i] = 0.0;
+    gpio_states_[i] = 0.0;
+    gpio_prev_[i] = 0.0;
+  }
+
+  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
+              "GPIO controller initialized: buzzer, torque, rgb_r, rgb_g, rgb_b");
+
   // if all checks go well return success
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -157,30 +167,9 @@ hardware_interface::CallbackReturn HulkuHardwareInterface::on_activate(
     return hardware_interface::CallbackReturn::ERROR;
   }
 
-  // Create a dedicated rclcpp::Node for hosting ROS services (buzzer, torque)
-  // This runs on its own thread so it doesn't block the real-time control loop
-  service_node_ = rclcpp::Node::make_shared("hulku_hardware_services");
-
-  buzzer_service_ = service_node_->create_service<std_srvs::srv::SetBool>(
-    "/hulku_hardware/buzzer",
-    std::bind(&HulkuHardwareInterface::buzzer_callback, this,
-              std::placeholders::_1, std::placeholders::_2));
-
-  torque_service_ = service_node_->create_service<std_srvs::srv::SetBool>(
-    "/hulku_hardware/torque",
-    std::bind(&HulkuHardwareInterface::torque_callback, this,
-              std::placeholders::_1, std::placeholders::_2));
-
-  service_executor_ = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
-  service_executor_->add_node(service_node_);
-  service_thread_ = std::thread([this]() { service_executor_->spin(); });
-
-  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
-              "ROS services started: /hulku_hardware/buzzer, /hulku_hardware/torque");
-
   // print success message
   RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
-              "Successfully activated!");
+              "Successfully activated! GPIO managed by ros2_control.");
 
   // return success if everything goes well
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -192,18 +181,6 @@ hardware_interface::CallbackReturn HulkuHardwareInterface::on_deactivate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
   RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
               "Deactivating ...please wait...");
-
-  // Shut down the ROS service thread
-  if (service_executor_) {
-    service_executor_->cancel();
-  }
-  if (service_thread_.joinable()) {
-    service_thread_.join();
-  }
-  buzzer_service_.reset();
-  torque_service_.reset();
-  service_node_.reset();
-  service_executor_.reset();
 
   // closes the serial connection
   close_serial();
@@ -222,24 +199,15 @@ hardware_interface::CallbackReturn HulkuHardwareInterface::on_deactivate(
 //  returns a list of interface objects
 std::vector<hardware_interface::StateInterface>
 HulkuHardwareInterface::export_state_interfaces() {
-  // It creates an empty list
   std::vector<hardware_interface::StateInterface> state_interfaces;
 
-  // A loop which go though every joint in the urdf and do following
+  // Joint state interfaces
   for (uint i = 0; i < info_.joints.size(); i++) {
-    // emplace_back create a new object (state_interface) element and adds
-    // element to the end of vector
-    // The object contains
-    // 1.) name of joint
-    // 2.) type of joint (position, velocity, effort etc.,)
-    // 3.) Address of the variable where that joints state is stored in our
-    // variable
     state_interfaces.emplace_back(hardware_interface::StateInterface(
         info_.joints[i].name, hardware_interface::HW_IF_POSITION,
         &hw_states_[i]));
   }
 
-  // returns the list of state interfaces
   return state_interfaces;
 }
 
@@ -248,25 +216,36 @@ HulkuHardwareInterface::export_state_interfaces() {
 // return list of commandInterface
 std::vector<hardware_interface::CommandInterface>
 HulkuHardwareInterface::export_command_interfaces() {
-
-  // It creates an empty list
   std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-  // A loop which go though every joint in the urdf and do following
+  // Joint command interfaces
   for (uint i = 0; i < info_.joints.size(); i++) {
-    // emplace_back create a new object (command_interface) element and adds
-    // element to the end of vector
-    // The object contains
-    // 1.) name of joint
-    // 2.) type of joint (position, velocity, effort etc.,)
-    // 3.) Address of the variable where that joints command is stored in our
-    // variable
     command_interfaces.emplace_back(hardware_interface::CommandInterface(
         info_.joints[i].name, hardware_interface::HW_IF_POSITION,
         &hw_commands_[i]));
   }
 
-  // returns the list of command interfaces
+  // GPIO command interfaces
+  for (const auto & gpio : info_.gpios) {
+    size_t gpio_idx = 0;
+    if (gpio.name == "buzzer_trigger") gpio_idx = 0;
+    else if (gpio.name == "torque_enable") gpio_idx = 1;
+    else if (gpio.name == "led_r") gpio_idx = 2;
+    else if (gpio.name == "led_g") gpio_idx = 3;
+    else if (gpio.name == "led_b") gpio_idx = 4;
+    else continue;
+
+    for (size_t i = 0; i < gpio.command_interfaces.size(); i++) {
+      if (gpio.command_interfaces[i].name == "command") {
+        command_interfaces.emplace_back(hardware_interface::CommandInterface(
+            gpio.name, "command", &gpio_commands_[gpio_idx]));
+        RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
+                    "Exported GPIO command: %s/command (index %zu)",
+                    gpio.name.c_str(), gpio_idx);
+      }
+    }
+  }
+
   return command_interfaces;
 }
 
@@ -533,7 +512,60 @@ HulkuHardwareInterface::write(const rclcpp::Time & /*time*/,
   msg[15] = (pos6 >> 8) & 0xFF; // sixth motor msb bit //gripper
   msg[16] = pos6 & 0xFF;        // sixth motor lsb bit
 
-  ::write(serial_fd_, msg, 17); // write all 15 byte to the serial port
+  ::write(serial_fd_, msg, 17); // write all 17 bytes to the serial port
+
+  // ===== GPIO Dispatch (send-on-change) =====
+  // Index: 0=buzzer, 1=torque, 2=rgb_r, 3=rgb_g, 4=rgb_b
+
+  // Buzzer (MCU register 0x06)
+  if (gpio_commands_[0] != gpio_prev_[0]) {
+    uint8_t val = static_cast<uint8_t>(gpio_commands_[0]);
+    uint8_t buzzer_msg[4] = {0x55, 0xAA, 0x03, val};
+    for (int i = 0; i < 3; i++) {
+      ::write(serial_fd_, buzzer_msg, 4);
+      usleep(3000);
+    }
+    RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
+                "[GPIO] Buzzer -> 0x%02X", val);
+    gpio_prev_[0] = gpio_commands_[0];
+    gpio_states_[0] = gpio_commands_[0];
+  }
+
+  // Torque (MCU register 0x1A)
+  if (gpio_commands_[1] != gpio_prev_[1]) {
+    uint8_t val = (gpio_commands_[1] > 0.5) ? 0x01 : 0x00;
+    uint8_t torque_msg[4] = {0x55, 0xAA, 0x04, val};
+    for (int i = 0; i < 3; i++) {
+      ::write(serial_fd_, torque_msg, 4);
+      usleep(3000);
+    }
+    RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
+                "[GPIO] Torque -> %s", val ? "ON (Hold)" : "OFF (Drag)");
+    gpio_prev_[1] = gpio_commands_[1];
+    gpio_states_[1] = gpio_commands_[1];
+  }
+
+  // RGB (MCU register 0x02)
+  if (gpio_commands_[2] != gpio_prev_[2] ||
+      gpio_commands_[3] != gpio_prev_[3] ||
+      gpio_commands_[4] != gpio_prev_[4]) {
+    uint8_t r = static_cast<uint8_t>(gpio_commands_[2]);
+    uint8_t g = static_cast<uint8_t>(gpio_commands_[3]);
+    uint8_t b = static_cast<uint8_t>(gpio_commands_[4]);
+    uint8_t rgb_msg[6] = {0x55, 0xAA, 0x05, r, g, b};
+    for (int i = 0; i < 3; i++) {
+      ::write(serial_fd_, rgb_msg, 6);
+      usleep(3000);
+    }
+    RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
+                "[GPIO] RGB -> R:%d G:%d B:%d", r, g, b);
+    gpio_prev_[2] = gpio_commands_[2];
+    gpio_prev_[3] = gpio_commands_[3];
+    gpio_prev_[4] = gpio_commands_[4];
+    gpio_states_[2] = gpio_commands_[2];
+    gpio_states_[3] = gpio_commands_[3];
+    gpio_states_[4] = gpio_commands_[4];
+  }
 
   // return ok if everything goes well
   return hardware_interface::return_type::OK;
@@ -680,67 +712,8 @@ void HulkuHardwareInterface::close_serial() {
   }
 }
 
-// ===== ROS Service Callbacks for Buzzer and Torque =====
-// These run on the service_thread_, NOT the real-time control loop.
-// They share serial_fd_ with read()/write() but the kernel serializes POSIX writes.
-
-void HulkuHardwareInterface::buzzer_callback(
-    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-    std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
-  if (serial_fd_ < 0) {
-    response->success = false;
-    response->message = "Serial port not open";
-    return;
-  }
-
-  std::lock_guard<std::mutex> lock(serial_mutex_);
-
-  // Protocol: [0x55, 0xAA, 0x03, state]  state: 0xFF=ON, 0x00=OFF
-  uint8_t state_byte = request->data ? 0xFF : 0x00;
-  uint8_t msg[4] = {0x55, 0xAA, 0x03, state_byte};
-  
-  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"), 
-              "[DEBUG] Sending BUZZER command: 0x%02X. Attempting 3 transmissions to bypass I2C traffic.", state_byte);
-
-  // Send 3 times to guarantee it punches through the heavy 100Hz read/write traffic
-  for (int i = 0; i < 3; i++) {
-    ::write(serial_fd_, msg, 4);
-    usleep(5000); // 5ms delay between retries
-  }
-
-  response->success = true;
-  response->message = request->data ? "Buzzer ON" : "Buzzer OFF";
-  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"), "%s", response->message.c_str());
-}
-
-void HulkuHardwareInterface::torque_callback(
-    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-    std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
-  if (serial_fd_ < 0) {
-    response->success = false;
-    response->message = "Serial port not open";
-    return;
-  }
-
-  std::lock_guard<std::mutex> lock(serial_mutex_);
-
-  // Protocol: [0x55, 0xAA, 0x04, state]  state: 0x01=Hold, 0x00=Drag
-  uint8_t state_byte = request->data ? 0x01 : 0x00;
-  uint8_t msg[4] = {0x55, 0xAA, 0x04, state_byte};
-
-  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"), 
-              "[DEBUG] Sending TORQUE command: 0x%02X. Attempting 3 transmissions to bypass I2C traffic.", state_byte);
-
-  // Send 3 times to guarantee it punches through
-  for (int i = 0; i < 3; i++) {
-    ::write(serial_fd_, msg, 4);
-    usleep(5000); // 5ms delay
-  }
-
-  response->success = true;
-  response->message = request->data ? "Torque ON (Hold mode)" : "Torque OFF (Drag mode)";
-  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"), "%s", response->message.c_str());
-}
+// Service callbacks removed — GPIO is now managed by ros2_control gpio_controller.
+// Commands arrive via ForwardCommandController -> gpio_commands_[] -> write() dispatch.
 
 } // namespace hulku_hardware
 

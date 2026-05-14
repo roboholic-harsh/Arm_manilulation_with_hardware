@@ -9,7 +9,6 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
-find_package(std_srvs REQUIRED)
 
 add_library(hulku_hardware SHARED
   src/hulku_hardware_interface.cpp
@@ -25,7 +24,6 @@ ament_target_dependencies(hulku_hardware
   rclcpp
   hardware_interface
   pluginlib
-  std_srvs
 )
 
 pluginlib_export_plugin_description_file(hardware_interface hulku_hardware_plugin.xml)
@@ -44,6 +42,6 @@ install(
 )
 
 ament_export_targets(export_hulku_hardware HAS_LIBRARY_TARGET)
-ament_export_dependencies(rclcpp hardware_interface pluginlib std_srvs)
+ament_export_dependencies(rclcpp hardware_interface pluginlib)
 
 ament_package()
