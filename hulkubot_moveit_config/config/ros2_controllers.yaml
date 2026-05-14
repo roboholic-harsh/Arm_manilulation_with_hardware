@@ -14,6 +14,9 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
+    gpio_controller:
+      type: forward_command_controller/ForwardCommandController
+
 arm_controller:
   ros__parameters:
     joints:
@@ -29,3 +32,13 @@ arm_controller:
 gripper_controller:
   ros__parameters:
     joint: Rlink1_Joint
+
+gpio_controller:
+  ros__parameters:
+    joints:
+      - buzzer_trigger
+      - torque_enable
+      - led_r
+      - led_g
+      - led_b
+    interface_name: command
