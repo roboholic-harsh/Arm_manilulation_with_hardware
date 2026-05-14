@@ -192,8 +192,14 @@ class HulkuAgentNode(Node):
             self.get_logger().info(f"Using NVIDIA backend: {model}")
             return NvidiaBackend(model_name=model, api_key=key)
 
+        elif provider == "mistral":
+            from hulku_ai_agent.llm_backends.mistral_backend import MistralBackend
+            key = api_key or os.environ.get("MISTRAL_API_KEY", "")
+            self.get_logger().info(f"Using Mistral backend: {model}")
+            return MistralBackend(model_name=model, api_key=key)
+
         else:
-            raise ValueError(f"Unknown LLM provider: '{provider}'. Use 'gemini', 'groq', 'ollama', 'ollama_cloud', 'openrouter', or 'nvidia'.")
+            raise ValueError(f"Unknown LLM provider: '{provider}'. Use 'gemini', 'groq', 'ollama', 'ollama_cloud', 'openrouter', 'nvidia', or 'mistral'.")
 
     def _joint_state_cb(self, msg):
         self.current_joint_state = msg
