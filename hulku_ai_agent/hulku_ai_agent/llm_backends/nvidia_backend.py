@@ -1,40 +1,42 @@
-"""Groq LLM backend with tool calling support."""
+"""NVIDIA NIM LLM backend with tool calling support."""
 
 import os
 import json
-from typing import List
 
 from hulku_ai_agent.llm_backends.base_backend import BaseLLMBackend, LLMResponse, ToolCall
 
 
-class GroqBackend(BaseLLMBackend):
+class NvidiaBackend(BaseLLMBackend):
     """
-    Groq backend using the Groq Python SDK with tool calling.
-    Fast inference with models like llama-3.1-70b-versatile.
+    NVIDIA backend using the OpenAI Python SDK.
     
     API key resolution order:
-        1. GROQ_API_KEY environment variable
+        1. NVIDIA_API_KEY environment variable
         2. Explicitly passed api_key parameter
     """
 
-    def __init__(self, model_name: str = "llama-3.1-70b-versatile", api_key: str = None):
+    def __init__(self, model_name: str = "qwen/qwen3-coder-480b-a35b-instruct", api_key: str = None):
         self._model_name = model_name
-        self._api_key = api_key or os.environ.get("GROQ_API_KEY", "")
+        self._api_key = api_key or os.environ.get("NVIDIA_API_KEY", "")
 
         if not self._api_key:
             raise ValueError(
-                "Groq API key not found. Set GROQ_API_KEY env var "
+                "NVIDIA API key not found. Set NVIDIA_API_KEY env var "
                 "or pass api_key parameter."
             )
 
-        from groq import Groq
-        self._client = Groq(api_key=self._api_key)
+        # pyrefly: ignore [missing-import]
+        from openai import OpenAI
+        self._client = OpenAI(
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key=self._api_key,
+        )
 
     def _convert_tools(self, tools: list) -> list:
-        """Convert our tool definitions to OpenAI-compatible format used by Groq."""
-        groq_tools = []
+        """Convert our tool definitions to OpenAI-compatible format."""
+        nvidia_tools = []
         for tool in tools:
-            groq_tools.append({
+            nvidia_tools.append({
                 "type": "function",
                 "function": {
                     "name": tool["name"],
@@ -42,15 +44,15 @@ class GroqBackend(BaseLLMBackend):
                     "parameters": tool["parameters"],
                 }
             })
-        return groq_tools
+        return nvidia_tools
 
     def chat(self, messages: list, tools: list) -> LLMResponse:
-        # Convert messages to Groq/OpenAI format
-        groq_messages = []
+        # Convert messages to OpenAI format
+        nvidia_messages = []
         for msg in messages:
             role = msg["role"]
             if role == "tool_result":
-                groq_messages.append({
+                nvidia_messages.append({
                     "role": "tool",
                     "content": msg["content"],
                     "tool_call_id": msg.get("tool_call_id", ""),
@@ -63,24 +65,24 @@ class GroqBackend(BaseLLMBackend):
                 }
                 if "tool_calls" in msg:
                     out_msg["tool_calls"] = msg["tool_calls"]
-                groq_messages.append(out_msg)
+                
+                nvidia_messages.append(out_msg)
 
         kwargs = {
             "model": self._model_name,
-            "messages": groq_messages,
+            "messages": nvidia_messages,
             "temperature": 0.1,
+            # Keeping stream=False (default) as the AgentCore expects full response
         }
 
         if tools:
             kwargs["tools"] = self._convert_tools(tools)
             kwargs["tool_choice"] = "auto"
-            # NOTE: Uncheck if needed for parallel tool calls disable if it cause problem with tool calls
-            # kwargs["parallel_tool_calls"] = False
 
         try:
             response = self._client.chat.completions.create(**kwargs)
         except Exception as e:
-            return LLMResponse(text=f"Error calling Groq: {str(e)}")
+            return LLMResponse(text=f"Error calling NVIDIA API: {str(e)}")
 
         choice = response.choices[0]
         message = choice.message
