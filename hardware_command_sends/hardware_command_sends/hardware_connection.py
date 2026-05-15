@@ -58,7 +58,7 @@ class DofbotBridge(Node):
             # Format the command for your ESP32 script
             # MOVE S1 S2 S3 S4 S5 S6 TIME
             command = f"MOVE {angles[0]} {angles[1]} {angles[2]} {angles[3]} {angles[4]} {angles[5]} {MOVE_TIME}\n"
-            
+            print(command)
             # Send to hardware
             self.ser.write(command.encode('utf-8'))
             

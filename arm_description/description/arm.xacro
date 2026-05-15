@@ -62,6 +62,16 @@
             </geometry>
             <material name="green"/>
         </visual>
+        <collision>
+            <origin xyz="0 0 -0.0655" rpy="0 0 0" />
+            <geometry>
+                <cylinder radius="0.040" length="0.077"/>
+            </geometry>
+            <material name="green"/>
+        </collision>
+        <xacro:inertial_cylinder mass="0.1" radius="0.040" length="0.077">
+            <origin xyz="0 0 -0.0655" rpy="0 0 0" />
+        </xacro:inertial_cylinder>
     </link>
 
 
@@ -83,6 +93,16 @@
             </geometry>
             <material name="blue"/>
         </visual>
+        <collision>
+            <origin xyz="0 0 -0.0215" rpy="0 0 0" />
+            <geometry>
+                <box size="0.021 0.0415 0.011"/>
+            </geometry>
+            <material name="blue"/>
+        </collision>
+        <xacro:inertial_box mass="0.1" x="0.021" y="0.0415" z="0.011">
+            <origin xyz="0 0 -0.0215" rpy="0 0 0" />
+        </xacro:inertial_box>
     </link>
 
 
@@ -104,6 +124,16 @@
             </geometry>
             <material name="blue"/>
         </visual>
+        <collision>
+            <origin xyz="0.02875 0 0" rpy="${pi/2} 0 -${pi/2}" />
+            <geometry>
+                <box size="0.021 0.0415 0.0785"/>
+            </geometry>
+            <material name="blue"/>
+        </collision>
+        <xacro:inertial_box mass="0.1" x="0.021" y="0.0415" z="0.0785">
+            <origin xyz="0.02875 0 0" rpy="${pi/2} 0 -${pi/2}" />
+        </xacro:inertial_box>
     </link>
 
     <!-- link 3 -->
@@ -124,6 +154,16 @@
             </geometry>
             <material name="blue"/>
         </visual>
+        <collision>
+            <origin xyz="0.02775 0 0" rpy="${pi/2} 0 -${pi/2}" />
+            <geometry>
+                <box size="0.021 0.0415 0.0765"/>
+            </geometry>
+            <material name="blue"/>
+        </collision>
+        <xacro:inertial_box mass="0.1" x="0.021" y="0.0415" z="0.0765">
+            <origin xyz="0.02775 0 0" rpy="${pi/2} 0 -${pi/2}" />
+        </xacro:inertial_box>
     </link>
 
     <!-- link 4 -->
@@ -144,6 +184,16 @@
             </geometry>
             <material name="blue"/>
         </visual>
+        <collision>
+            <origin xyz="0.03175 0 0" rpy="${pi/2} 0 -${pi/2}" />
+            <geometry>
+                <box size="0.021 0.0415 0.0845"/>
+            </geometry>
+            <material name="blue"/>
+        </collision>
+        <xacro:inertial_box mass="0.1" x="0.021" y="0.0415" z="0.0845">
+            <origin xyz="0.03175 0 0" rpy="${pi/2} 0 -${pi/2}" />
+        </xacro:inertial_box>
     </link>
 
     <!-- EEpin -->
@@ -164,6 +214,16 @@
             </geometry>
             <material name="white"/>
         </visual>
+        <collision>
+            <origin xyz="0 0 -0.006" rpy="0 0 0" />
+            <geometry>
+                <box size="0.001 0.001 0.012"/>
+            </geometry>
+            <material name="white"/>
+        </collision>
+        <xacro:inertial_box mass="0.1" x="0.001" y="0.001" z="0.012">
+            <origin xyz="0 0 -0.006" rpy="0 0 0" />
+        </xacro:inertial_box>
     </link>
 
 
@@ -185,6 +245,16 @@
             </geometry>
             <material name="blue"/>
         </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.022 0.011 0.040"/>
+            </geometry>
+            <material name="blue"/>
+        </collision>
+        <xacro:inertial_box mass="0.1" x="0.022" y="0.011" z="0.040">
+            <origin xyz="0 0 0" rpy="0 0 0" />
+        </xacro:inertial_box>
     </link> -->
 
     <!-- right-finger -->
@@ -206,6 +276,16 @@
             </geometry>
             <material name="blue"/>
         </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.022 0.011 0.040"/>
+            </geometry>
+            <material name="blue"/>
+        </collision>
+        <xacro:inertial_box mass="0.1" x="0.022" y="0.011" z="0.040">
+            <origin xyz="0 0 0" rpy="0 0 0" />
+        </xacro:inertial_box>
     </link> -->
 
 </robot>

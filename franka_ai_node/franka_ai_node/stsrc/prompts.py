@@ -59,6 +59,18 @@ Response:
 {
   "gripper": 0.03
 }
+
+Request: "move first joint to 90"
+Response: 
+{
+  "joints": [-402, -402, -402, 90, -402]
+}
+
+Request: "Move seconds and third joint to 0"
+Response: 
+{
+  "joints": [-402, 0, 0, -402, -402]
+}
 """
 
 

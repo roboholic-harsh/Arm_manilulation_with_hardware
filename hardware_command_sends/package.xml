@@ -7,7 +7,7 @@
   <maintainer email="kathan@todo.todo">kathan</maintainer>
   <license>TODO: License declaration</license>
 
-  <exec_depend>serial</exec_depend>
+  <exec_depend>pyserial</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
 
