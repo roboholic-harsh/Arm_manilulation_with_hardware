@@ -6,6 +6,8 @@ import json
 import os
 import threading
 import time
+import subprocess
+import signal
 
 import streamlit as st
 
@@ -398,6 +400,63 @@ def main():
         
         st.markdown("<br>", unsafe_allow_html=True)
         
+        st.markdown("### 🦾 Drag & Teach Mode")
+        st.caption("Physically drag the arm to record waypoints, then play them back.")
+        
+        if 'dt_process' not in st.session_state:
+            st.session_state.dt_process = None
+        if 'dt_recording' not in st.session_state:
+            st.session_state.dt_recording = False
+
+        # Path to the drag_and_teach.py script
+        # Robustly find workspace root whether running from src/ or install/
+        curr_dir = os.path.abspath(__file__)
+        while curr_dir != '/' and os.path.basename(curr_dir) not in ['src', 'install']:
+            curr_dir = os.path.dirname(curr_dir)
+        ws_root = os.path.dirname(curr_dir) if curr_dir != '/' else '/home/roboholic_harsh/Desktop/dofbotarm/harsh_ws'
+        
+        script_path = os.path.join(ws_root, 'src', 'useful_scripts', 'DragAndTeach', 'drag_and_teach.py')
+        
+        # Playback process polling to reset playing state automatically
+        if st.session_state.get('dt_playing', False) and st.session_state.dt_process:
+            if st.session_state.dt_process.poll() is not None:
+                st.session_state.dt_playing = False
+                st.session_state.dt_process = None
+
+        if 'dt_playing' not in st.session_state:
+            st.session_state.dt_playing = False
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if not st.session_state.dt_recording:
+                if st.button("🔴 Record", disabled=st.session_state.dt_playing):
+                    st.session_state.dt_process = subprocess.Popen(["python3", script_path, "record"])
+                    st.session_state.dt_recording = True
+                    st.rerun()
+            else:
+                if st.button("🛑 Stop Rec"):
+                    if st.session_state.dt_process:
+                        st.session_state.dt_process.send_signal(signal.SIGINT)
+                        st.session_state.dt_process = None
+                    st.session_state.dt_recording = False
+                    st.rerun()
+                    
+        with col2:
+            if not st.session_state.dt_playing:
+                if st.button("▶️ Play", disabled=st.session_state.dt_recording):
+                    st.session_state.dt_process = subprocess.Popen(["python3", script_path, "play", "--speed", "1.0"])
+                    st.session_state.dt_playing = True
+                    st.rerun()
+            else:
+                if st.button("⏸️ Stop Play"):
+                    if st.session_state.dt_process:
+                        st.session_state.dt_process.send_signal(signal.SIGINT)
+                        st.session_state.dt_process = None
+                    st.session_state.dt_playing = False
+                    st.rerun()
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+
         if st.button("🗑️ Clear Conversation"):
             st.session_state.messages = []
             st.rerun()

@@ -65,6 +65,7 @@ void setTorque(uint8_t state) {
   Wire.beginTransmission(ADDR);
   Wire.write(0x1A); Wire.write(state); 
   Wire.endTransmission();
+  // Integrated sensor suite + onboard compute
 }
 
 void setRGB(uint8_t r, uint8_t g, uint8_t b) {
@@ -154,15 +155,45 @@ void loop() {
         
         if (calc_check == rx_cmd.checksum) {
           switch(rx_cmd.cmd_type) {
-
-            case 5: // PC REQUESTED ENCODERS
+            case 5: // GET ENCODERS
               transmitEncoderState();
               break;
-            case 1: // MOVE
+
+            case 1: // MOVE ARM
+              // params: s1, s2, s3, s4, time
               moveArm(rx_cmd.params[0], rx_cmd.params[1], rx_cmd.params[2], 
                       rx_cmd.params[3], rx_cmd.params[4]);
               break;
-            // You can add RGB, Torque, and Buzz back here if needed
+
+            case 2: // SET RGB
+              // Make a quick chirp to prove the packet arrived and passed checksum!
+              delay(20);
+              setRGB((uint8_t)rx_cmd.params[0], 
+                     (uint8_t)rx_cmd.params[1], 
+                     (uint8_t)rx_cmd.params[2]);
+              delay(5);
+              break;
+
+            case 3: // SET TORQUE
+              // params: 1 (ON) or 0 (OFF)
+              delay(20);
+
+              setTorque((uint8_t)rx_cmd.params[0]);
+              delay(5);
+              break;
+
+            case 4: // CONTROL BUZZER
+              // params: 1 (BEEP ON) or 0 (BEEP OFF), or 2 for dualBeep
+              delay(20);
+
+              if (rx_cmd.params[0] == 2) {
+                dualBeep();
+              } else {
+                controlBuzzer(rx_cmd.params[0] == 1 ? 0xFF : 0x00);
+              }
+              delay(5);
+
+              break;
           }
         }
       } else {
