@@ -47,21 +47,27 @@
                 </state_interface>
             </joint>
 
+            <!-- This Gpio tag is inbuilt tag nothing to do with our gpio_controller name -->
             <!-- GPIO Controller Interfaces (Buzzer, Torque, RGB) -->
             <gpio name="buzzer_trigger">
                 <command_interface name="command"/>
+                <param name="initial_value">0.0</param>
             </gpio>
             <gpio name="torque_enable">
                 <command_interface name="command"/>
+                <param name="initial_value">1.0</param>
             </gpio>
             <gpio name="led_r">
                 <command_interface name="command"/>
+                <param name="initial_value">0.0</param>
             </gpio>
             <gpio name="led_g">
                 <command_interface name="command"/>
+                <param name="initial_value">0.0</param>
             </gpio>
             <gpio name="led_b">
                 <command_interface name="command"/>
+                <param name="initial_value">0.0</param>
             </gpio>
 
         </ros2_control>

@@ -5,4 +5,5 @@ from hulku_ai_agent.llm_backends.openrouter_backend import OpenRouterBackend
 from hulku_ai_agent.llm_backends.nvidia_backend import NvidiaBackend
 from hulku_ai_agent.llm_backends.mistral_backend import MistralBackend
 
+# Defined public interface (python's module level variable)
 __all__ = ['BaseLLMBackend', 'LLMResponse', 'ToolCall', 'OpenRouterBackend', 'NvidiaBackend', 'MistralBackend']

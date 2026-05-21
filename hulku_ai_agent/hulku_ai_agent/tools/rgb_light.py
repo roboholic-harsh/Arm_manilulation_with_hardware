@@ -23,12 +23,17 @@ class RGBLightTool(BaseTool):
         self._state = gpio_state  # shared list [buzzer, torque, r, g, b]
 
     def execute(self, r: int, g: int, b: int, **kwargs) -> ToolResult:
+        # Change the _state with the new rgb values in the rgb placeholders 
         self._state[2] = float(min(255, max(0, int(r))))
         self._state[3] = float(min(255, max(0, int(g))))
         self._state[4] = float(min(255, max(0, int(b))))
 
+        # instantiate MultiArray message object
         msg = Float64MultiArray()
+        # copy the edited _state to the message object data field
         msg.data = [float(v) for v in self._state]
+        # publish the message to the GPIO controller
         self._pub.publish(msg)
 
+        # return the result to the agent
         return ToolResult(True, f"RGB set to ({int(r)}, {int(g)}, {int(b)})")

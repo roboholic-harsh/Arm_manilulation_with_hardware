@@ -30,6 +30,9 @@ class PrintMessageTool(BaseTool):
             return ToolResult(False, "Message cannot be empty.")
         
         # Inject the special tag so the GUI knows to render it as a chat bubble
+        # check if the agentnode has _agent attribute if yes then only proceed
+        # _feeback_cb is register at call time _execute_callback for the live updates according to state
+        # it is done to isolate the feeback for each main task prompt
         if hasattr(self._node, '_agent') and self._node._agent._feedback_cb:
             self._node._agent._feedback_cb(f"[USER_MSG]{message}")
             

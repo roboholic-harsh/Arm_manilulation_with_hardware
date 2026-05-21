@@ -31,6 +31,7 @@ class GeminiBackend(BaseLLMBackend):
         2. Explicitly passed api_key parameter
     """
 
+    # Intialize with the configuration from yaml and env file
     def __init__(self, model_name: str = "gemini-2.0-flash", api_key: str = None):
         self._model_name = model_name
         self._api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
@@ -41,23 +42,81 @@ class GeminiBackend(BaseLLMBackend):
                 "or pass api_key parameter."
             )
 
+        # pyrefly: ignore [missing-import]
         import google.generativeai as genai
         genai.configure(api_key=self._api_key)
         self._genai = genai
 
     def _json_schema_to_proto_schema(self, schema: dict):
         """Convert a JSON Schema dict into a genai.protos.Schema object."""
-        protos = self._genai.protos
+        """Example schema on time of writing (mar 2026) for referance 
+            {
+                "type": enum (Type),
+                "format": string,
+                "title": string,
+                "description": string,
+                "nullable": boolean,
+                "default": value,
+                "items": {
+                    object (Schema)
+                },
+                "minItems": string,
+                "maxItems": string,
+                "enum": [
+                    string
+                ],
+                "properties": {
+                    string: {
+                    object (Schema)
+                    },
+                    ...
+                },
+                "propertyOrdering": [
+                    string
+                ],
+                "required": [
+                    string
+                ],
+                "minProperties": string,
+                "maxProperties": string,
+                "minimum": number,
+                "maximum": number,
+                "minLength": string,
+                "maxLength": string,
+                "pattern": string,
+                "example": value,
+                "anyOf": [
+                    {
+                    object (Schema)
+                    }
+                ],
+                "additionalProperties": value,
+                "ref": string,
+                "defs": {
+                    string: {
+                    object (Schema)
+                    },
+                    ...
+                }
+            }
+        """
+        protos = self._genai.protos # shortens the name space path
 
+        #### Not used schema_type ####
+        # get the schema data type if exists otherwise fallback to object and capitalize it
         schema_type = schema.get("type", "object").upper()
         # Map JSON Schema type strings to proto Type enum
+        # Gets actual reference like protos.Type.NUMBER for number (actually translation happen here)
         proto_type = getattr(protos.Type, _TYPE_MAP.get(schema.get("type", "object"), "OBJECT"))
 
+        # initialize final keyword argument dictionary
         kwargs = {"type": proto_type}
 
+        # if description in json format copy in the llm structure
         if "description" in schema:
             kwargs["description"] = schema["description"]
 
+        # if the field is constrained it copies it so llm only generates allowed values
         if "enum" in schema:
             kwargs["enum"] = schema["enum"]
 
@@ -68,6 +127,7 @@ class GeminiBackend(BaseLLMBackend):
                 props[prop_name] = self._json_schema_to_proto_schema(prop_schema)
             kwargs["properties"] = props
 
+        # Copies the list of fields that must be supplied so llm never skip it
         if "required" in schema:
             kwargs["required"] = schema["required"]
 
@@ -75,18 +135,34 @@ class GeminiBackend(BaseLLMBackend):
         if "items" in schema:
             kwargs["items"] = self._json_schema_to_proto_schema(schema["items"])
 
+        # unpack the kwargs and create porotos final schema and return final object
         return protos.Schema(**kwargs)
 
     def _convert_tools(self, tools: list) -> list:
-        """Convert our tool definitions to Gemini FunctionDeclaration format."""
+        """Convert our tool definitions to Gemini FunctionDeclaration format.""" 
+        """
+        Example Function declaration proto
+        FunctionDeclaration(
+            *,
+            name: str,
+            parameters: typing.Dict[str, typing.Any],
+            description: typing.Optional[str] = None,
+            response: typing.Optional[typing.Dict[str, typing.Any]] = None
+        )
+        for more: - (refer) https://docs.cloud.google.com/python/docs/reference/vertexai/latest/vertexai.generative_models.FunctionDeclaration?hl=en
+        """
         protos = self._genai.protos
+        # create an empty declaration variable
         declarations = []
 
+        # Go through all tools
         for tool in tools:
+            # get the params dict from the tool
             params = tool.get("parameters", {})
             # Convert JSON Schema to Gemini proto Schema
             proto_schema = self._json_schema_to_proto_schema(params)
 
+            # Append the declaration
             declarations.append(
                 protos.FunctionDeclaration(
                     name=tool["name"],
@@ -94,7 +170,8 @@ class GeminiBackend(BaseLLMBackend):
                     parameters=proto_schema,
                 )
             )
-
+        # Here protos.Tool is a piece of code which lets the system interact with external systems
+        # for more: - (refer) https://docs.cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform_v1beta1.types.Tool?hl=en
         return [protos.Tool(function_declarations=declarations)]
 
     def chat(self, messages: list, tools: list) -> LLMResponse:
@@ -107,6 +184,7 @@ class GeminiBackend(BaseLLMBackend):
             role = msg["role"]
             content = msg["content"]
 
+            # Gemini required system prompts to be given at instantiation of the model
             if role == "system":
                 system_instruction = content
             elif role == "user":
@@ -131,15 +209,20 @@ class GeminiBackend(BaseLLMBackend):
             for um in user_msgs[:-1]:
                 history.append({"role": "user", "parts": [um["content"]]})
 
+        # convert the tools to the gemini format (protos)
         gemini_tools = self._convert_tools(tools) if tools else None
 
+        # initialize model here only not before because system instruction and tools are required at instantiation
+        # for more:- (refer) https://docs.cloud.google.com/python/docs/reference/vertexai/latest/vertexai.generative_models.GenerativeModel?hl=en
         model = self._genai.GenerativeModel(
             model_name=self._model_name,
             system_instruction=system_instruction,
             tools=gemini_tools,
         )
 
+        # launches an active session seeded with the loaded historical messages
         chat = model.start_chat(history=history)
+        # sends the latest message (user prompt)
         response = chat.send_message(latest_message)
 
         # Parse the response
@@ -170,22 +253,30 @@ class GeminiBackend(BaseLLMBackend):
             tool_calls=tool_calls,
         )
 
+    # the decorator to make the method static which does not recieve any implicit first argument
+    # defined as static because it is a pure utility function
     @staticmethod
     def _convert_proto_value(val):
         """Recursively convert a protobuf Value/MapComposite to native Python."""
+        # if datatype is base then return as it is
         if isinstance(val, (str, int, float, bool)):
             return val
+        # if datatype is list or tuple then convert each element to native python and return list
         if isinstance(val, (list, tuple)):
             return [GeminiBackend._convert_proto_value(v) for v in val]
+        # if datatype is dict then convert each value to native python and return dict
         if isinstance(val, dict):
             return {k: GeminiBackend._convert_proto_value(v) for k, v in val.items()}
-        # Try accessing as a proto Value
+        # Try accessing as a proto Val object which is a wrapper which has number_value field containing the actual data
         if hasattr(val, 'number_value'):
             return val.number_value
+        # same way wrapper for string_value
         if hasattr(val, 'string_value'):
             return val.string_value
         if hasattr(val, 'bool_value'):
             return val.bool_value
+        # it is like a dict (behave like dict) but not the actual python dict 
         if hasattr(val, 'items'):
             return {k: GeminiBackend._convert_proto_value(v) for k, v in val.items()}
+        # if unknown encountered just make it string and return it
         return str(val)

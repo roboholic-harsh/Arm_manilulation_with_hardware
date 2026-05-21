@@ -18,7 +18,7 @@ agent:
     
   max_steps: 100
   default_provider: "mistral"
-  default_model: "devstral-latest"
+  default_model: "mistral-medium-3.5"
 
 robot:
   arm_group: "arm"

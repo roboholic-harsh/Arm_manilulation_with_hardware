@@ -24,16 +24,20 @@ class WaitTool(BaseTool):
 
     def execute(self, seconds: float = 0.0, **kwargs) -> ToolResult:
         try:
+            # convert seconds into float value from the input
             sec = float(seconds)
         except (ValueError, TypeError):
             return ToolResult(False, f"Invalid value for seconds: {seconds}")
 
+        # check if value is positive and more than zero
         if sec <= 0:
             return ToolResult(False, "Seconds must be greater than 0.")
         
         # Safety cap to prevent completely locking up the agent indefinitely
         if sec > 300:
             return ToolResult(False, "Cannot wait for more than 300 seconds (5 minutes) at a time.")
-            
+
+        # execute the python's standard sleep function for the amount of time     
         time.sleep(sec)
+        # return result after successful wait period over
         return ToolResult(True, f"Successfully waited for {sec} seconds.")

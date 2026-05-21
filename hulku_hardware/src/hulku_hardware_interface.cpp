@@ -105,15 +105,49 @@ HulkuHardwareInterface::on_init(const hardware_interface::HardwareInfo &info) {
     }
   }
 
-  // Initialize GPIO command arrays to zero
+  // Initialize GPIO command arrays to default (0.0), and prev state to -1 to
+  // force first write
   for (size_t i = 0; i < GPIO_COUNT; i++) {
     gpio_commands_[i] = 0.0;
     gpio_states_[i] = 0.0;
     gpio_prev_[i] = 0.0;
   }
 
-  RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
-              "GPIO controller initialized: buzzer, torque, rgb_r, rgb_g, rgb_b");
+  // Parse initial values from URDF/xacro parameter mapping
+  for (const auto &gpio : info_.gpios) {
+    size_t gpio_idx = 0;
+    if (gpio.name == "buzzer_trigger")
+      gpio_idx = 0;
+    else if (gpio.name == "torque_enable")
+      gpio_idx = 1;
+    else if (gpio.name == "led_r")
+      gpio_idx = 2;
+    else if (gpio.name == "led_g")
+      gpio_idx = 3;
+    else if (gpio.name == "led_b")
+      gpio_idx = 4;
+    else
+      continue;
+
+    if (gpio.parameters.find("initial_value") != gpio.parameters.end()) {
+      try {
+        double initial_val = std::stod(gpio.parameters.at("initial_value"));
+        gpio_commands_[gpio_idx] = initial_val;
+        gpio_states_[gpio_idx] = initial_val;
+        RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
+                    "GPIO %s initial value configured as: %.2f",
+                    gpio.name.c_str(), initial_val);
+      } catch (const std::exception &e) {
+        RCLCPP_WARN(rclcpp::get_logger("HulkuHardwareInterface"),
+                    "Failed to parse initial value for GPIO %s: %s",
+                    gpio.name.c_str(), e.what());
+      }
+    }
+  }
+
+  RCLCPP_INFO(
+      rclcpp::get_logger("HulkuHardwareInterface"),
+      "GPIO controller initialized: buzzer, torque, rgb_r, rgb_g, rgb_b");
 
   // if all checks go well return success
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -226,17 +260,34 @@ HulkuHardwareInterface::export_command_interfaces() {
   }
 
   // GPIO command interfaces
-  for (const auto & gpio : info_.gpios) {
+  // loop through each gpios defined and populated from inside the ros2_control
+  // (xacro file) gpio tag
+  for (const auto &gpio : info_.gpios) { // const :- to make parameters
+                                         // read-only
+    // To map the state interfaces for gpio's to exact numerical number inside
+    // the gpio_command array in our interface definition
     size_t gpio_idx = 0;
-    if (gpio.name == "buzzer_trigger") gpio_idx = 0;
-    else if (gpio.name == "torque_enable") gpio_idx = 1;
-    else if (gpio.name == "led_r") gpio_idx = 2;
-    else if (gpio.name == "led_g") gpio_idx = 3;
-    else if (gpio.name == "led_b") gpio_idx = 4;
-    else continue;
+    if (gpio.name == "buzzer_trigger")
+      gpio_idx = 0;
+    else if (gpio.name == "torque_enable")
+      gpio_idx = 1;
+    else if (gpio.name == "led_r")
+      gpio_idx = 2;
+    else if (gpio.name == "led_g")
+      gpio_idx = 3;
+    else if (gpio.name == "led_b")
+      gpio_idx = 4;
+    else
+      continue;
 
+    // go through the interfaces defined inside the gpio controller like
+    // (command, state, frequency, range, calibration etc.,)
     for (size_t i = 0; i < gpio.command_interfaces.size(); i++) {
       if (gpio.command_interfaces[i].name == "command") {
+        // setup the command interface which goes to controller manager so it
+        // could manage the states and in/out values for that particular pins
+        // This helps ros2_control to map the excat memory value where to store
+        // interface values
         command_interfaces.emplace_back(hardware_interface::CommandInterface(
             gpio.name, "command", &gpio_commands_[gpio_idx]));
         RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
@@ -358,11 +409,11 @@ HulkuHardwareInterface::read(const rclcpp::Time & /*time*/,
         if (hw_states_.size() > 0)
           hw_states_[0] = pulse_to_rad(pulses[0], false, false);
         if (hw_states_.size() > 1)
-          hw_states_[1] = pulse_to_rad(pulses[1], true, false);
+          hw_states_[1] = pulse_to_rad(pulses[1], false, false);
         if (hw_states_.size() > 2)
-          hw_states_[2] = pulse_to_rad(pulses[2], true, false);
+          hw_states_[2] = pulse_to_rad(pulses[2], false, false);
         if (hw_states_.size() > 3)
-          hw_states_[3] = pulse_to_rad(pulses[3], true, false);
+          hw_states_[3] = pulse_to_rad(pulses[3], false, false);
         if (hw_states_.size() > 4)
           hw_states_[4] = pulse_to_rad(pulses[4], false, true); // 270 deg
         if (hw_states_.size() > 5)
@@ -467,9 +518,9 @@ HulkuHardwareInterface::write(const rclcpp::Time & /*time*/,
 
   // Convert commands
   uint16_t pos1 = rad_to_pulse(c1, false, false);
-  uint16_t pos2 = rad_to_pulse(c2, true, false);
-  uint16_t pos3 = rad_to_pulse(c3, true, false);
-  uint16_t pos4 = rad_to_pulse(c4, true, false);
+  uint16_t pos2 = rad_to_pulse(c2, false, false);
+  uint16_t pos3 = rad_to_pulse(c3, false, false);
+  uint16_t pos4 = rad_to_pulse(c4, false, false);
   uint16_t pos5 = rad_to_pulse(c5, false, true); // 270 deg
   uint16_t pos6 = rad_to_pulse(c6, false, false);
 
@@ -520,20 +571,32 @@ HulkuHardwareInterface::write(const rclcpp::Time & /*time*/,
   // Buzzer (MCU register 0x06)
   if (gpio_commands_[0] != gpio_prev_[0]) {
     uint8_t val = static_cast<uint8_t>(gpio_commands_[0]);
+    // here the 0x55 0xAA 0x03 is the sequence we defined for matching our
+    // arduino code sequence and 0x03 is for buzzer activation value decided by
+    // us on arduino code
     uint8_t buzzer_msg[4] = {0x55, 0xAA, 0x03, val};
+    // loop through the write signal 3 times for each change to avoid noise
+    // coming on serial bus
     for (int i = 0; i < 3; i++) {
       ::write(serial_fd_, buzzer_msg, 4);
+      // It is a small delay custom made to give arduino time to read the value
       usleep(3000);
     }
+    // Printing the value of the buzzer
     RCLCPP_INFO(rclcpp::get_logger("HulkuHardwareInterface"),
                 "[GPIO] Buzzer -> 0x%02X", val);
+    // prevents from writing same data again and again if same value has already
+    // been setted
     gpio_prev_[0] = gpio_commands_[0];
     gpio_states_[0] = gpio_commands_[0];
   }
 
   // Torque (MCU register 0x1A)
+  // All working are same as if block of buzzer
   if (gpio_commands_[1] != gpio_prev_[1]) {
     uint8_t val = (gpio_commands_[1] > 0.5) ? 0x01 : 0x00;
+    // 0x04 is decided index in our arduino to perform torque command to main
+    // board
     uint8_t torque_msg[4] = {0x55, 0xAA, 0x04, val};
     for (int i = 0; i < 3; i++) {
       ::write(serial_fd_, torque_msg, 4);
@@ -546,9 +609,12 @@ HulkuHardwareInterface::write(const rclcpp::Time & /*time*/,
   }
 
   // RGB (MCU register 0x02)
+  // Only sends serial if any of three values changes to avoid serial buffer
+  // exhaustion
   if (gpio_commands_[2] != gpio_prev_[2] ||
       gpio_commands_[3] != gpio_prev_[3] ||
       gpio_commands_[4] != gpio_prev_[4]) {
+    // converts coming floating values to unsigned 8-bit integer
     uint8_t r = static_cast<uint8_t>(gpio_commands_[2]);
     uint8_t g = static_cast<uint8_t>(gpio_commands_[3]);
     uint8_t b = static_cast<uint8_t>(gpio_commands_[4]);
@@ -712,8 +778,9 @@ void HulkuHardwareInterface::close_serial() {
   }
 }
 
-// Service callbacks removed — GPIO is now managed by ros2_control gpio_controller.
-// Commands arrive via ForwardCommandController -> gpio_commands_[] -> write() dispatch.
+// Service callbacks removed — GPIO is now managed by ros2_control
+// gpio_controller. Commands arrive via ForwardCommandController ->
+// gpio_commands_[] -> write() dispatch.
 
 } // namespace hulku_hardware
 

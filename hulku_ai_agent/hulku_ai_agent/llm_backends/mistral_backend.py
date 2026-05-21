@@ -16,6 +16,7 @@ class MistralBackend(BaseLLMBackend):
         2. Explicitly passed api_key parameter
     """
 
+    # Intialize with the configuration from yaml and env file
     def __init__(self, model_name: str = "mistral-large-latest", api_key: str = None):
         self._model_name = model_name
         self._api_key = api_key or os.environ.get("MISTRAL_API_KEY", "")
@@ -28,12 +29,15 @@ class MistralBackend(BaseLLMBackend):
 
         # Try the new SDK import, fallback to the older mistralai.client if needed
         try:
+            # pyrefly: ignore [missing-import]
             from mistralai import Mistral
         except ImportError:
+            # pyrefly: ignore [missing-import]
             from mistralai.client import Mistral
             
         self._client = Mistral(api_key=self._api_key)
 
+    # converting list of tool dict into Groq's tool dict format (Almost no change)
     def _convert_tools(self, tools: list) -> list:
         """Convert our tool definitions to Mistral-compatible format."""
         mistral_tools = []
@@ -50,9 +54,11 @@ class MistralBackend(BaseLLMBackend):
 
     def chat(self, messages: list, tools: list) -> LLMResponse:
         # Convert messages to Mistral format
+        # Initialize empty list for mistral.ai formatted messages
         mistral_messages = []
         for msg in messages:
             role = msg["role"]
+            # If it is a tool result message then convert it into Mistral format
             if role == "tool_result":
                 mistral_messages.append({
                     "role": "tool",
@@ -60,11 +66,13 @@ class MistralBackend(BaseLLMBackend):
                     "tool_call_id": msg.get("tool_call_id", ""),
                     "name": msg.get("tool_name", ""),
                 })
+            # for other messages just copy the same
             else:
                 out_msg = {
                     "role": role,
                     "content": msg["content"],
                 }
+                # Here we check tool_calls so that we can add tool call result if done by assistant in past
                 if "tool_calls" in msg:
                     out_msg["tool_calls"] = msg["tool_calls"]
                 
@@ -79,6 +87,7 @@ class MistralBackend(BaseLLMBackend):
             "temperature": 0.1,
         }
 
+        # refer to groq_backend comment for same
         if tools:
             kwargs["tools"] = self._convert_tools(tools)
             kwargs["tool_choice"] = "auto"
@@ -97,8 +106,10 @@ class MistralBackend(BaseLLMBackend):
                 # Mistral tool call arguments might be passed as a string or dict 
                 # depending on SDK version
                 if isinstance(tc.function.arguments, str):
+                    # if older sdk then it comes as json string load it and run it
                     args = json.loads(tc.function.arguments) if tc.function.arguments else {}
                 else:
+                    # if newer SDK then might come as python dict directly then use it directly
                     args = tc.function.arguments or {}
                     
                 tool_calls.append(ToolCall(
@@ -107,6 +118,7 @@ class MistralBackend(BaseLLMBackend):
                     id=tc.id or "",
                 ))
 
+        # returns the response in LLMResponse format
         return LLMResponse(
             text=message.content if message.content else None,
             tool_calls=tool_calls,

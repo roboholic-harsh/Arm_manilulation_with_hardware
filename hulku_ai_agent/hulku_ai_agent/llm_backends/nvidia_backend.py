@@ -15,6 +15,7 @@ class NvidiaBackend(BaseLLMBackend):
         2. Explicitly passed api_key parameter
     """
 
+    # Intialize with the configuration from yaml and env file
     def __init__(self, model_name: str = "qwen/qwen3-coder-480b-a35b-instruct", api_key: str = None):
         self._model_name = model_name
         self._api_key = api_key or os.environ.get("NVIDIA_API_KEY", "")
@@ -32,6 +33,7 @@ class NvidiaBackend(BaseLLMBackend):
             api_key=self._api_key,
         )
 
+    # converting list of tool dict into OpenAI's tool dict format (Almost no change)
     def _convert_tools(self, tools: list) -> list:
         """Convert our tool definitions to OpenAI-compatible format."""
         nvidia_tools = []
@@ -48,10 +50,12 @@ class NvidiaBackend(BaseLLMBackend):
 
     def chat(self, messages: list, tools: list) -> LLMResponse:
         # Convert messages to OpenAI format
+        # Initialize empty list for OpenAI's formatted messages
         nvidia_messages = []
         for msg in messages:
             role = msg["role"]
             if role == "tool_result":
+                # If it is a tool result message then convert it into OpenAI format
                 nvidia_messages.append({
                     "role": "tool",
                     "content": msg["content"],
@@ -59,10 +63,12 @@ class NvidiaBackend(BaseLLMBackend):
                     "name": msg.get("tool_name", ""),
                 })
             else:
+                # for other messages just copy the same
                 out_msg = {
                     "role": role,
                     "content": msg["content"],
                 }
+                # Here we check tool_calls so that we can add tool call result if done by assistant in past
                 if "tool_calls" in msg:
                     out_msg["tool_calls"] = msg["tool_calls"]
                 
@@ -88,6 +94,7 @@ class NvidiaBackend(BaseLLMBackend):
         message = choice.message
 
         tool_calls = []
+        # if tool calls are present then extract them and append to tool_calls list
         if message.tool_calls:
             for tc in message.tool_calls:
                 args = json.loads(tc.function.arguments) if tc.function.arguments else {}
@@ -97,6 +104,7 @@ class NvidiaBackend(BaseLLMBackend):
                     id=tc.id or "",
                 ))
 
+        # returns the response in LLMResponse format
         return LLMResponse(
             text=message.content if message.content else None,
             tool_calls=tool_calls,

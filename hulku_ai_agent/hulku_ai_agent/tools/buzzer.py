@@ -24,8 +24,8 @@ class BuzzerTool(BaseTool):
     }
 
     def __init__(self, node, gpio_pub, gpio_state):
-        self._node = node
-        self._pub = gpio_pub
+        self._node = node # node: hulkuAgentNode
+        self._pub = gpio_pub # publisher: The GPIO controller publisher
         self._state = gpio_state  # shared list [buzzer, torque, r, g, b]
 
     def execute(self, state: bool = False, duration: float = 0.0, **kwargs) -> ToolResult:
@@ -35,11 +35,16 @@ class BuzzerTool(BaseTool):
         else:
             val = 255 if state else 0
 
+        # setting the revieved buzzer value in it's placeholder
         self._state[0] = float(val)
+        # create standard messaging object of MultiArray
         msg = Float64MultiArray()
+        # copy the edited state to the message object data field
         msg.data = [float(v) for v in self._state]
+        # publish the message to the GPIO publisher
         self._pub.publish(msg)
 
+        # return tool result according to the requested operation
         if duration and duration > 0:
             return ToolResult(True, f"Buzzer activated for {duration:.1f} seconds.")
         return ToolResult(True, "Buzzer ON" if state else "Buzzer OFF")
