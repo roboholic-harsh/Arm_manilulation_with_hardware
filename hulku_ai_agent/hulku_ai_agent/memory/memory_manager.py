@@ -5,7 +5,10 @@ import os
 from typing import List, Dict, Any, Optional
 
 try:
+    
+    # pyrefly: ignore [missing-import]
     import chromadb
+    # pyrefly: ignore [missing-import]
     from chromadb.config import Settings
     CHROMA_AVAILABLE = True
 except ImportError:

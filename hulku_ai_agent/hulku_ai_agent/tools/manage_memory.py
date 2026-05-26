@@ -6,10 +6,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ManageMemoryTool(BaseTool):
+    # This is the tool name which the LLM uses to identify this tool
     name = "manage_memory"
+    # This is the tool description which teaches the LLM when to use this tool and what constraints exist
     description = (
         "Save, update, delete, or list important facts, user preferences, or pieces of information (like saved joint positions) in long-term declarative memory. "
-        "Use this tool when the user explicitly asks you to remember, update, forget, or display/list saved memories."
+        "Use this tool when the user explicitly asks you to remember, update, forget, or display/list saved memories. "
+        "IMPORTANT: To save the current joint positions/values, you MUST first run the get_joint_states tool in the same turn to get the latest values."
     )
     parameters = {
         "type": "object",

@@ -89,7 +89,14 @@ class MoveJointsTool(BaseTool):
 
         # Plan
         future = self._plan_client.call_async(req) # Call planning service asynchronously and return future object which satisfy when request complete
-        rclpy.spin_until_future_complete(self._node, future, timeout_sec=10.0) # Do not exactly blocks the main execution just pause the process at this step and wait for result
+        
+        # Wait for the future to complete thread-safely using a sleep loop
+        import time
+        start_time = time.time()
+        while not future.done():
+            time.sleep(0.05)
+            if time.time() - start_time > 10.0:
+                break
 
         res = future.result() # extracts the result object from the completed future object
         # checks the error code from result object which should be 1 if planning is successful other means planning failed/ collision detected/ out_of_bounds
@@ -102,17 +109,30 @@ class MoveJointsTool(BaseTool):
 
         send_future = self._execute_client.send_goal_async(goal) # submits goal to the MoveIt action server and returns a future object 
         # This is goal handshake acknowledgement 
-        rclpy.spin_until_future_complete(self._node, send_future, timeout_sec=10.0) # Waits until reply if action server accepted or rejected the goal
+        
+        # Wait for goal acknowledgement thread-safely
+        start_time = time.time()
+        while not send_future.done():
+            time.sleep(0.05)
+            if time.time() - start_time > 10.0:
+                break
 
         handle = send_future.result() # stores result in handle object 
-        if not handle.accepted:
+        if handle is None or not handle.accepted:
             return ToolResult(False, "Trajectory execution was rejected by the controller.")
 
         result_future = handle.get_result_async() # request final execution result if completed or not 
-        rclpy.spin_until_future_complete(self._node, result_future, timeout_sec=30.0)
+        
+        # Wait for final result thread-safely
+        start_time = time.time()
+        while not result_future.done():
+            time.sleep(0.05)
+            if time.time() - start_time > 30.0:
+                break
 
-        # quries final result if not success (which is 1) then return failure
-        if result_future.result().result.error_code.val != 1:
+        # queries final result if not success (which is 1) then return failure
+        execution_res = result_future.result()
+        if execution_res is None or execution_res.result.error_code.val != 1:
             return ToolResult(False, "Trajectory execution failed.")
 
         return ToolResult(True, f"Successfully moved joints to {joint_angles} degrees.")

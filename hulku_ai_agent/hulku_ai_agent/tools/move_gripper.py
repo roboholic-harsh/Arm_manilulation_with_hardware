@@ -60,7 +60,14 @@ class MoveGripperTool(BaseTool):
         req.motion_plan_request = mpr
 
         future = self._plan_client.call_async(req)
-        rclpy.spin_until_future_complete(self._node, future, timeout_sec=10.0)
+        
+        # Wait for the future to complete thread-safely using a sleep loop
+        import time
+        start_time = time.time()
+        while not future.done():
+            time.sleep(0.05)
+            if time.time() - start_time > 10.0:
+                break
 
         res = future.result()
         if res is None or res.motion_plan_response.error_code.val != 1:
@@ -70,16 +77,29 @@ class MoveGripperTool(BaseTool):
         goal.trajectory = res.motion_plan_response.trajectory
 
         send_future = self._execute_client.send_goal_async(goal)
-        rclpy.spin_until_future_complete(self._node, send_future, timeout_sec=10.0)
+        
+        # Wait for goal acknowledgement thread-safely
+        start_time = time.time()
+        while not send_future.done():
+            time.sleep(0.05)
+            if time.time() - start_time > 10.0:
+                break
 
         handle = send_future.result()
-        if not handle.accepted:
+        if handle is None or not handle.accepted:
             return ToolResult(False, "Gripper execution rejected.")
 
         result_future = handle.get_result_async()
-        rclpy.spin_until_future_complete(self._node, result_future, timeout_sec=15.0)
+        
+        # Wait for final result thread-safely
+        start_time = time.time()
+        while not result_future.done():
+            time.sleep(0.05)
+            if time.time() - start_time > 15.0:
+                break
 
-        if result_future.result().result.error_code.val != 1:
+        execution_res = result_future.result()
+        if execution_res is None or execution_res.result.error_code.val != 1:
             return ToolResult(False, "Gripper execution failed.")
 
         return ToolResult(True, f"Gripper {action}ed successfully.")

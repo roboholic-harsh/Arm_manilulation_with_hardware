@@ -5,10 +5,12 @@ from hulku_ai_agent.tools.base_tool import BaseTool, ToolResult
 
 
 class GetJointStatesTool(BaseTool):
+    # This is the tool name which the LLM uses to identify this tool
     name = "get_joint_states"
+    # This is the tool description which teaches the LLM when to use this tool
     description = (
         "Read the current position of all robot joints in degrees. "
-        "Use this to check where the robot is before planning a move."
+        "Use this to check where the robot is before planning a move, or before saving the current joint values to memory."
     )
     parameters = {
         "type": "object",
